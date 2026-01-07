@@ -1,0 +1,25 @@
+name: Release the Github Actions Workflows
+
+on: 
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+  
+jobs:
+  create-release:
+    uses: ./.github/workflows/shared-create-release.yml
+    if: github.ref == 'refs/heads/main'
+    with:
+      ENVIRONMENT: 'release'
+      DEFAULT_BUMP: 'minor'
+      SHOULD_TAG_MAJOR: true
+      SHOULD_TAG_LATEST: true

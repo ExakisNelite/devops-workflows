@@ -1,0 +1,154 @@
+name: 🔄 Rollback to previous version of a PHP application to Virtual Machine
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      vm_host:
+        description: 'VM host IP address'
+        required: true
+        type: string
+      vm_path:
+        description: 'Deployment path on VM'
+        required: false
+        type: string
+        default: '/var/www/html'
+      backup_path:
+        description: 'Path where backups are stored on VM'
+        required: false
+        type: string
+        default: '/tmp'
+  workflow_call:
+    inputs:
+      vm_host:
+        description: 'VM host IP address'
+        required: true
+        type: string
+      vm_path:
+        description: 'Deployment path on VM'
+        required: false
+        type: string
+        default: '/var/www/html'
+      backup_path:
+        description: 'Path where backups are stored on VM'
+        required: false
+        type: string
+        default: '/tmp'
+    secrets:
+      VM_SSH_KEY:
+        description: 'SSH private key for VM access'
+        required: true
+      VM_USER:
+        description: 'SSH user for VM access'
+        required: true
+
+jobs:
+  rollback-vm:
+    name: 🔄 Rollback VM (${{ inputs.vm_host }})
+    runs-on: self-hosted
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - name: 🔑 Setup SSH key
+        run: |
+          echo "${{ secrets.VM_SSH_KEY }}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+
+      - name: 🔍 Find latest backup
+        run: |
+          echo "Searching for backups in ${{ inputs.backup_path }}..."
+          
+          # Find the latest backup directory
+          LATEST_BACKUP=$(timeout 60 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" \
+            "ls -t ${{ inputs.backup_path }}/backup-* 2>/dev/null | head -1 | tr -d ':'" || echo "")
+
+          if [ -z "$LATEST_BACKUP" ]; then
+            echo "❌ No backups found in ${{ inputs.backup_path }}"
+            echo "Available directories:"
+            timeout 60 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" \
+              "ls -la ${{ inputs.backup_path }}/" || echo "Could not list backup directory"
+            exit 1
+          fi
+
+          echo "✅ Found latest backup: ${LATEST_BACKUP}"
+          echo "LATEST_BACKUP=${LATEST_BACKUP}" >> "$GITHUB_ENV"
+
+      - name: 🔌 Test SSH connection
+        run: |
+          echo "Testing SSH connection to VM..."
+          timeout 60 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" 'echo "SSH connection successful"'
+
+      - name: 🔄 Perform rollback
+        run: |
+          echo "Rolling back deployment from backup..."
+          echo "Using backup: $LATEST_BACKUP"
+          echo "Connecting to VM: ${{ secrets.VM_USER }}@${{ inputs.vm_host }}"
+          
+          # Use a here-document for better SSH command handling
+          ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" << 'REMOTE_SCRIPT'
+            echo "=== ROLLBACK RUNNING ON TARGET VM ==="
+            echo "Hostname: $(hostname)"
+            echo "IP Address: $(hostname -I)"
+            echo "Current user: $(whoami)"
+            echo "User ID: $(id)"
+            echo "======================================"
+
+            # Find the latest backup again (since variables don't persist across steps)
+            LATEST_BACKUP=$(ls -t ${{ inputs.backup_path }}/backup-* 2>/dev/null | head -1 | tr -d ':')
+            echo "Found backup: $LATEST_BACKUP"
+
+            # Verify backup exists and is not empty
+            if [ ! -d "$LATEST_BACKUP" ]; then
+              echo "❌ Backup directory does not exist: $LATEST_BACKUP"
+              exit 1
+            fi
+
+            if [ ! "$(ls -A "$LATEST_BACKUP" 2>/dev/null)" ]; then
+              echo "❌ Backup directory is empty: $LATEST_BACKUP"
+              exit 1
+            fi
+
+            echo "📋 Backup directory contents:"
+            sudo ls -la "$LATEST_BACKUP"
+
+            # Create backup of current deployment before rollback
+            ROLLBACK_BACKUP_DIR="${{ inputs.backup_path }}/pre-rollback-$(date +%Y%m%d-%H%M%S)"
+            if [ -d "${{ inputs.vm_path }}" ] && [ "$(ls -A "${{ inputs.vm_path }}" 2>/dev/null)" ]; then
+              echo "📦 Creating backup of current deployment before rollback..."
+              echo "Pre-rollback backup directory: $ROLLBACK_BACKUP_DIR"
+              sudo mkdir -p "$ROLLBACK_BACKUP_DIR"
+              sudo cp -r "${{ inputs.vm_path }}" "$ROLLBACK_BACKUP_DIR/"
+              echo "✅ Pre-rollback backup created at $ROLLBACK_BACKUP_DIR"
+            fi
+
+            # Clear current deployment directory
+            echo "🧹 Clearing current deployment directory..."
+            sudo rm -rf ${{ inputs.vm_path }}/*
+
+            # Restore from backup
+            echo "🔄 Restoring from backup..."
+            sudo cp -r "$LATEST_BACKUP"/* ${{ inputs.vm_path }}/
+
+            echo "📋 Deployment directory after rollback:"
+            sudo ls -la ${{ inputs.vm_path }}
+
+            # Verify rollback success
+            echo "=== ROLLBACK VERIFICATION ==="
+            echo "Directory ownership and permissions:"
+            sudo ls -ld ${{ inputs.vm_path }}
+            echo "Filesystem info:"
+            df -h ${{ inputs.vm_path }}
+            echo "============================"
+
+            echo "🎉 Rollback completed successfully"
+            echo "✅ Rolled back to: $LATEST_BACKUP"
+          REMOTE_SCRIPT
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          # Remove SSH key
+          rm -f /tmp/ssh_key
+          echo "✅ Cleanup: SSH key removed"
+          echo "🧹 Cleanup completed"

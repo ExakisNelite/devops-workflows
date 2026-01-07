@@ -1,0 +1,795 @@
+name: '🛠️ > 🚀 : Build, Check & Deploy Terraform'
+on:
+  workflow_call:
+    inputs:
+      REPOSITORY:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+      TERRAFORM_VERSION:
+        required: false
+        type: string
+        default: 1.6.4
+      WORKING_DIRECTORY:
+        required: false
+        type: string
+        default: .
+      VARIABLES_FILE:
+        required: false
+        type: string
+        default: ''
+      CHECKOV_CONFIG_DIRECTORY:
+        required: false
+        type: string
+        default: ./.github/configuration
+      TARGET_BRANCH:
+        description: 'Target Branch to checkout'
+        required: false
+        type: string
+        default: 'main'
+      DEFAULT_BRANCH:
+        required: true
+        type: string
+      ENVIRONMENT_CHECK:
+        required: false
+        type: string
+        default: 'integration'
+      ENVIRONMENT_DEPLOYMENT:
+        required: false
+        type: string
+        default: 'recette'
+      RG_NAME_TFSTATE:
+        description: 'Name of the Resource Group containing the Storage Account storing the .tfstate file'
+        required: true
+        type: string
+      STORAGE_NAME_TFSTATE:
+        description: 'Name of the Storage Account storing the .tfstate file'
+        required: true
+        type: string
+      CONTAINER_NAME_TFSTATE:
+        description: 'Name of the Blob Container storing the .tfstate file'
+        required: true
+        type: string
+      NAME_TFSTATE_BUILD_CHECK:
+        description: 'Name of the .tfstate file for build and check operations, ex : platform.tfstate'
+        required: true
+        type: string
+      NAME_TFSTATE_DEPLOY:
+        description: 'Name of the .tfstate file for deployment operations, ex : platform.tfstate'
+        required: true
+        type: string
+      USE_OIDC:
+        description: 'Use OIDC for the backend'
+        required: false
+        default: true
+        type: boolean
+      SHOULD_GENERATE_MODULES_DOCUMENTATION:
+        description: 'Should generate the documentation for the Terraform modules'
+        required: false
+        type: boolean
+        default: false
+      USE_TERRASCAN:
+        description: 'Should use Terrascan to check the Terraform code'
+        required: false
+        type: boolean
+        default: false
+      LINTER_VALIDATE_ALL_CODEBASE:
+        description: 'Should validate the whole codebase'
+        required: false
+        type: boolean
+        default: true
+      LINTER_VALIDATE_CHECKOV:
+        description: 'Should validate the Checkov rules'
+        required: false
+        type: boolean
+        default: true
+      LINTER_VALIDATE_MARKDOWN:
+        description: 'Should validate the Markdown files'
+        required: false
+        type: boolean
+        default: true
+      LINTER_VALIDATE_NATURAL_LANGUAGE:
+        description: 'Should validate the Natural Language files'
+        required: false
+        type: boolean
+        default: true
+      LINTER_VALIDATE_JSON:
+        description: 'Should validate the JSON files'
+        required: false
+        type: boolean
+        default: true
+      TERRAFORM_TFLINT_CONFIG_FILE:
+        type: string
+        description: 'Filename for tfLint configuration (ex: .tflint.hcl)'
+        required: false
+        default: '.tflint.hcl'
+      SHOULD_EXECUTE_LINTER:
+        description: 'Should execute the linter check control'
+        required: false
+        type: boolean
+        default: false
+      FORCE_DESTROY:
+        description: 'Force Destroy before Plan'
+        required: false
+        default: false
+        type: boolean
+      EVENT_NAME:
+        description: 'The name of the event that triggered the workflow'
+        required: false
+        type: string
+        default: 'push'
+      RG_NAME_RESOURCES_TO_OPEN:
+        description: 'Name of the Resource Group containing the resources to open the firewall'
+        required: false
+        type: string
+        default: ''
+      OPEN_STORAGE_ACCOUNT_FIREWALL:
+        description: 'Open firewall for Storage Account'
+        required: false
+        default: false
+        type: boolean
+      OPEN_AZURE_SQL_DATABASE_FIREWALL:
+        description: 'Open firewall for Azure SQL Database'
+        required: false
+        default: false
+        type: boolean
+      OPEN_AZURE_APPSERVICE_FIREWALL:
+        description: 'Open firewall for Azure App Service'
+        required: false
+        default: false
+        type: boolean
+      OPEN_AZURE_FUNCTIONAPP_FIREWALL:
+        description: 'Open firewall for Azure Function App'
+        required: false
+        default: false
+        type: boolean
+      OPEN_KEY_VAULT_FIREWALL:
+        description: 'Open firewall for Key Vault'
+        required: false
+        default: false
+        type: boolean
+      OPEN_ACR_FIREWALL:
+        description: 'Open firewall for Azure Container Registry'
+        required: false
+        default: false
+        type: boolean
+      OPEN_APPCONFIGURATION_FIREWALL:
+        description: 'Open firewall for Azure App Configuration'
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      CLIENT_ID:
+        description: 'Azure Service Principal Client ID'
+        required: true
+      SUBSCRIPTION_ID:
+        description: 'Azure Subscription ID'
+        required: true
+      TENANT_ID:
+        description: 'Azure Tenant ID'
+        required: true
+      UNIVERSAL_GH_APP_ID_CODE:
+        description: 'GitHub App ID'
+        required: true
+      UNIVERSAL_GH_APP_PRIVATE_KEY_CODE:
+        description: 'GitHub App Private Key'
+        required: true
+      VARIABLES:
+        required: false
+        description: 'Terraform variables'
+
+jobs:
+  #╔═════════════════════════════════════════╗
+  #             TERRAFORM CHECKOV
+  #╚═════════════════════════════════════════╝
+  checkov:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT_CHECK }}
+    steps:
+      - name: Checkout Working Directory
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
+      
+      - name: Login with Azure CLI
+        id: azure-login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+
+      - name: Open Resources Firewall
+        id: open-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        with:
+          ACTION: OpenOneIp
+          StorageAccount: true
+          RG: ${{ inputs.RG_NAME_TFSTATE }}
+
+      - name: Open Resources Firewall
+        id: open-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+
+      - name: Generate token for the Organization Reader GitHub App
+        id: generate-token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
+          private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
+
+      - name: Init the connection to meilleurtaux GitHub Organization to use the Terraform modules
+        run: |
+          git config --global credential.helper store
+          echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
+        env:
+          UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: ${{ inputs.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Check if container exists, otherwise create it
+        id: check-container
+        shell: bash
+        run: |
+          CONTAINER_NAME="${{ inputs.CONTAINER_NAME_TFSTATE }}"
+          CONTAINER_EXISTS=$(az storage container exists --name $CONTAINER_NAME --account-name ${{ inputs.STORAGE_NAME_TFSTATE }} --auth-mode login --query exists --output tsv)
+          if [ "$CONTAINER_EXISTS" = "false" ]; then
+            az storage container create --name $CONTAINER_NAME --account-name ${{ inputs.STORAGE_NAME_TFSTATE }} --auth-mode login
+          fi
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+          -backend-config='resource_group_name=${{ inputs.RG_NAME_TFSTATE }}'
+          -backend-config='storage_account_name=${{ inputs.STORAGE_NAME_TFSTATE }}'
+          -backend-config='container_name=${{ inputs.CONTAINER_NAME_TFSTATE }}'
+          -backend-config='key=${{ inputs.NAME_TFSTATE_BUILD_CHECK }}'
+          -backend-config='use_oidc=${{ inputs.USE_OIDC }}'
+          -backend-config='client_id=${{ env.CLIENT_ID }}'
+          -backend-config='subscription_id=${{ env.SUBSCRIPTION_ID }}'
+          -backend-config='tenant_id=${{ env.TENANT_ID }}'          
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Build Variables File
+        id: build-tfvars
+        run: |
+          if [ -n "$VARIABLES" ]; then
+            echo "Variables found, creating terraform.tfvars"
+            echo "$VARIABLES" > terraform.tfvars
+          else
+            echo "No variables provided, skipping terraform.tfvars creation"
+          fi
+        env:
+          VARIABLES: ${{ secrets.VARIABLES }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Format terraform.tfvars
+        id: format-tfvars
+        run: |
+          if [ -f "terraform.tfvars" ]; then
+            echo "terraform.tfvars found, formatting file"
+            # Terraform fmt will format the file in-place
+            terraform fmt terraform.tfvars
+          else
+            echo "terraform.tfvars not found, skipping format"
+          fi
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          # Initialize command without var-file
+          PLAN_CMD="terraform plan -input=false"
+          
+          # Add the input var-file if it's provided
+          if [ -n "${{ inputs.VARIABLES_FILE }}" ]; then
+            echo "Using variable file from inputs: ${{ inputs.VARIABLES_FILE }}"
+            PLAN_CMD="${PLAN_CMD} -var-file='${{ inputs.VARIABLES_FILE }}'"
+          else
+            echo "No variable file provided in inputs"
+          fi
+          
+          # Check if terraform.tfvars exists and add it to the command if it does
+          if [ -f "terraform.tfvars" ]; then
+            echo "terraform.tfvars found, adding to plan command"
+            PLAN_CMD="${PLAN_CMD} -var-file='terraform.tfvars'"
+          else
+            echo "terraform.tfvars not found, skipping"
+          fi
+          
+          # Add output paths to the command
+          PLAN_CMD="${PLAN_CMD} -out='tfplan-${{ inputs.ENVIRONMENT_CHECK }}.out'"
+          
+          # Execute the command and capture output
+          eval "${PLAN_CMD}" | tee "tfplan-${{ inputs.ENVIRONMENT_CHECK }}.txt"
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Show
+        id: show
+        run: terraform show
+          -json tfplan-${{ inputs.ENVIRONMENT_CHECK }}.out | jq '.' > tfplan-${{ inputs.ENVIRONMENT_CHECK }}.json
+        shell: bash
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Checkov Exception
+        id: generate-checkov-skip
+        run: |
+          CHECKOV_SKIP="$(cat "checkov-skip")"
+          echo "checkov-skip=$CHECKOV_SKIP" >> "$GITHUB_OUTPUT"
+        working-directory: ${{ inputs.CHECKOV_CONFIG_DIRECTORY}}
+
+      - name: Checkov - Security Check
+        uses: meilleurtaux/cap-action-terraform-checkov@latest
+        with:
+          WORKING_DIRECTORY: ${{ inputs.WORKING_DIRECTORY}}
+          TFPLAN_FILE: tfplan-${{ inputs.ENVIRONMENT_CHECK }}.json
+          SKIP_CHECK: ${{ steps.generate-checkov-skip.outputs.checkov-skip }}
+          OUTPUT_FORMAT: console
+
+      - name: Close Resources Firewall
+        id: close-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+
+      - name: Close Resources Firewall
+        id: close-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always()
+        with:
+          ACTION: CloseOneIp
+          StorageAccount: true
+          RG: ${{ inputs.RG_NAME_TFSTATE }}
+
+  #╔═════════════════════════════════════════╗
+  #                SUPERLINTER
+  #╚═════════════════════════════════════════╝
+  super-linter:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.SHOULD_EXECUTE_LINTER == true }}
+    steps:
+      - name: Checkout Working Directory
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
+
+      - name: Super Linter        
+        uses: meilleurtaux/cap-action-terraform-superlinter@latest
+        with:
+          DEFAULT_BRANCH: ${{ inputs.DEFAULT_BRANCH }}
+          DEFAULT_WORKSPACE: ${{ inputs.WORKING_DIRECTORY }}
+          UNIVERSAL_GH_APP_ID_CODE: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
+          UNIVERSAL_GH_APP_PRIVATE_KEY_CODE: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FILTER_REGEX_EXCLUDE: .*(/.devcontainer|/.github|/tf_test).*
+          USE_TERRASCAN: ${{ inputs.USE_TERRASCAN }}
+          VALIDATE_ALL_CODEBASE: ${{ inputs.LINTER_VALIDATE_ALL_CODEBASE }}
+          VALIDATE_CHECKOV: ${{ inputs.LINTER_VALIDATE_CHECKOV }}
+          VALIDATE_MARKDOWN: ${{ inputs.LINTER_VALIDATE_MARKDOWN }}
+          VALIDATE_NATURAL_LANGUAGE: ${{ inputs.LINTER_VALIDATE_NATURAL_LANGUAGE }}
+          VALIDATE_JSON: ${{ inputs.LINTER_VALIDATE_JSON }}
+          TERRAFORM_TFLINT_CONFIG_FILE : ${{ inputs.TERRAFORM_TFLINT_CONFIG_FILE }}
+
+  #╔═════════════════════════════════════════╗
+  #             TERRAFORM FMT
+  #╚═════════════════════════════════════════╝
+  terraform-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Working Directory
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
+
+      - name: Terraform fmt
+        uses: meilleurtaux/cap-action-terraform-fmt@latest
+        with:
+          TERRAFORM_VERSION: ${{ inputs.TERRAFORM_VERSION }}
+          working-dir: ${{ inputs.WORKING_DIRECTORY}}
+
+  #╔═════════════════════════════════════════╗
+  #         GENERATE ARTIFACT PLAN NAME
+  #╚═════════════════════════════════════════╝
+  generate-artifact-plan-name:
+    name: Set Artifact Plan Name
+    runs-on: ubuntu-latest
+    needs: [checkov, terraform-fmt]
+    steps:
+      - name: Set Artifact Plan Name
+        id: set-artifact-plan-name
+        run: |
+          $FULL_NAME_TFSTATE="${{ inputs.NAME_TFSTATE_DEPLOY }}"
+          $ENVIRONMENT_NAME = "${{ inputs.ENVIRONMENT_DEPLOYMENT }}"
+          $UNIQUE_ID=Get-Date -Format "yyyyMMddHHmmss"
+          $NAME_TFSTATE = Split-Path $FULL_NAME_TFSTATE -Leaf
+          $ARTIFACT_PLAN_NAME = "terraform_plan_" + ($ENVIRONMENT_NAME) + "_" + ($UNIQUE_ID) + ($NAME_TFSTATE -replace ".tfstate", "")
+          echo "artifact-plan-name=$ARTIFACT_PLAN_NAME" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+
+    outputs:
+      ARTIFACT_PLAN_NAME: ${{ steps.set-artifact-plan-name.outputs.artifact-plan-name }}
+    
+  #╔═════════════════════════════════════╗
+  #   TERRAFORM INIT, VALIDATE AND PLAN
+  #╚═════════════════════════════════════╝
+  terraform-init-validate-plan:
+    name: Terraform Init, Validate and Plan
+    needs: generate-artifact-plan-name
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.WORKING_DIRECTORY }}
+    environment: ${{ inputs.ENVIRONMENT_DEPLOYMENT }}
+    steps:
+        # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout Working Directory
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
+      - name: Login with Azure CLI
+        id: azure-login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+      - name: Open Resources Firewall
+        id: open-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        with:
+          ACTION: OpenOneIp
+          StorageAccount: true
+          RG: ${{ inputs.RG_NAME_TFSTATE }}
+
+      - name: Open Resources Firewall
+        id: open-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+  
+      - name: Generate token for the Organization Reader GitHub App
+        id: generate-token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
+          private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
+      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+        run: |
+          git config --global credential.helper store
+          echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
+        env:
+            UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+        # TODO: YWI, début partie à externaliser dans une action composite cap-action-terraform-workflow
+        # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: ${{ inputs.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Check if container exists, otherwise create it
+        id: check-container
+        shell: bash
+        run: |
+          CONTAINER_NAME="${{ inputs.CONTAINER_NAME_TFSTATE }}"
+          CONTAINER_EXISTS=$(az storage container exists --name $CONTAINER_NAME --account-name ${{ inputs.STORAGE_NAME_TFSTATE }} --auth-mode login --query exists --output tsv)
+          if [ "$CONTAINER_EXISTS" = "false" ]; then
+            az storage container create --name $CONTAINER_NAME --account-name ${{ inputs.STORAGE_NAME_TFSTATE }} --auth-mode login
+          fi
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+            -backend-config='resource_group_name=${{ inputs.RG_NAME_TFSTATE }}'
+            -backend-config='storage_account_name=${{ inputs.STORAGE_NAME_TFSTATE }}'
+            -backend-config='container_name=${{ inputs.CONTAINER_NAME_TFSTATE }}'
+            -backend-config='key=${{ inputs.NAME_TFSTATE_DEPLOY }}' 
+            -backend-config='use_oidc=${{ inputs.USE_OIDC }}'
+            -backend-config='client_id=${{ env.CLIENT_ID }}'
+            -backend-config='subscription_id=${{ env.SUBSCRIPTION_ID }}' 
+            -backend-config='tenant_id=${{ env.TENANT_ID }}' 
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.FORCE_DESTROY  == 'true' }}
+        id: destroy
+        run: terraform destroy -input=false -auto-approve
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Build Variables File
+        id: build-tfvars
+        run: |
+          if [ -n "$VARIABLES" ]; then
+            echo "Variables found, creating terraform.tfvars"
+            echo "$VARIABLES" > terraform.tfvars
+          else
+            echo "No variables provided, skipping terraform.tfvars creation"
+          fi
+        env:
+          VARIABLES: ${{ secrets.VARIABLES }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Format terraform.tfvars
+        id: format-tfvars
+        run: |
+          if [ -f "terraform.tfvars" ]; then
+            echo "terraform.tfvars found, formatting file"
+            # Terraform fmt will format the file in-place
+            terraform fmt terraform.tfvars
+          else
+            echo "terraform.tfvars not found, skipping format"
+          fi
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          # Initialize command without var-file
+          PLAN_CMD="terraform plan -input=false"
+          
+          # Add the input var-file if it's provided
+          if [ -n "${{ inputs.VARIABLES_FILE }}" ]; then
+            echo "Using variable file from inputs: ${{ inputs.VARIABLES_FILE }}"
+            PLAN_CMD="${PLAN_CMD} -var-file='${{ inputs.VARIABLES_FILE }}'"
+          else
+            echo "No variable file provided in inputs"
+          fi
+          
+          # Check if terraform.tfvars exists and add it to the command if it does
+          if [ -f "terraform.tfvars" ]; then
+            echo "terraform.tfvars found, adding to plan command"
+            PLAN_CMD="${PLAN_CMD} -var-file='terraform.tfvars'"
+          else
+            echo "terraform.tfvars not found, skipping"
+          fi
+          
+          # Add output paths to the command
+          PLAN_CMD="${PLAN_CMD} -out='tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out'"
+          
+          # Execute the command and capture output
+          eval "${PLAN_CMD}" | tee "tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.txt"
+          
+          PLAN="$(grep -A0 "Plan:" "./tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.txt" || echo 'No changes')"
+          
+          echo "${{ inputs.ENVIRONMENT_DEPLOYMENT }} : \"$PLAN\"" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Upload Resulting Terraform as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
+          path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out
+
+        # TODO: YWI, fin partie à externaliser dans un workflow reutilisable
+
+      - name: Close Resources Firewall
+        id: close-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+
+      - name: Close Resources Firewall
+        id: close-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always()
+        with:
+            ACTION: CloseOneIp
+            StorageAccount: true
+            RG: ${{ inputs.RG_NAME_TFSTATE }}
+
+  #╔═══════════════════════════════════════╗
+  #   MANUAL APPROVAL AND TERRAFORM APPLY
+  #╚═══════════════════════════════════════╝
+  terraform-approve-apply:
+    name: Terraform Plan Approval and Apply
+    needs: [ generate-artifact-plan-name , terraform-init-validate-plan ]
+    runs-on: ubuntu-latest    
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.WORKING_DIRECTORY }} 
+    environment: ${{ inputs.ENVIRONMENT_DEPLOYMENT }}
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout Working Directory
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
+
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
+          path: ${{ inputs.WORKING_DIRECTORY }}
+
+      - name: Login with Azure CLI
+        id: azure-login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+
+      - name: Open Resources Firewall
+        id: open-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        with:
+          ACTION: OpenOneIp
+          StorageAccount: true
+          RG: ${{ inputs.RG_NAME_TFSTATE }}
+
+      - name: Open Resources Firewall
+        id: open-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+
+      - name: Generate token for the Organization Reader GitHub App
+        id: generate-token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
+          private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
+
+      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+        run: |
+          git config --global credential.helper store
+          echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
+        env:
+          UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+            terraform_version: ${{ inputs.TERRAFORM_VERSION }}
+            terraform_wrapper: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+            -backend-config='resource_group_name=${{ inputs.RG_NAME_TFSTATE }}'
+            -backend-config='storage_account_name=${{ inputs.STORAGE_NAME_TFSTATE }}'
+            -backend-config='container_name=${{ inputs.CONTAINER_NAME_TFSTATE }}'
+            -backend-config='key=${{ inputs.NAME_TFSTATE_DEPLOY }}'
+            -backend-config='use_oidc=${{ inputs.USE_OIDC }}'
+            -backend-config='client_id=${{ env.CLIENT_ID }}'
+            -backend-config='subscription_id=${{ env.SUBSCRIPTION_ID }}'
+            -backend-config='tenant_id=${{ env.TENANT_ID }}'
+        env:
+            TENANT_ID: ${{ secrets.TENANT_ID }}
+            SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+            CLIENT_ID: ${{ secrets.CLIENT_ID }}
+            ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -input=false -auto-approve tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out
+        env:
+            TENANT_ID: ${{ secrets.TENANT_ID }}
+            SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+            CLIENT_ID: ${{ secrets.CLIENT_ID }}
+            ARM_SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+        working-directory: ${{ inputs.WORKING_DIRECTORY}}
+
+      - name: Close Resources Firewall
+        id: close-firewalls-resources
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
+        with:
+          ACTION: OpenOneIp
+          RG: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN }}
+          StorageAccount: ${{ inputs.OPEN_STORAGE_ACCOUNT_FIREWALL }}
+          AzureSqlDatabase: ${{ inputs.OPEN_AZURE_SQL_DATABASE_FIREWALL }}
+          AppService: ${{ inputs.OPEN_AZURE_APPSERVICE_FIREWALL }}
+          FunctionApp: ${{ inputs.OPEN_AZURE_FUNCTIONAPP_FIREWALL }}
+          Keyvault: ${{ inputs.OPEN_KEY_VAULT_FIREWALL }}
+          ACR: ${{ inputs.OPEN_ACR_FIREWALL }}
+          AppConfiguration: ${{ inputs.OPEN_APPCONFIGURATION_FIREWALL }}
+
+      - name: Close Resources Firewall
+        id: close-firewalls
+        uses: meilleurtaux/cap-action-firewall@latest
+        if: always()
+        with:
+            ACTION: CloseOneIp
+            StorageAccount: true
+            RG: ${{ inputs.RG_NAME_TFSTATE }}

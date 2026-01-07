@@ -1,0 +1,68 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.208.0/containers/ubuntu
+{
+	"name": "Ubuntu",
+	"build": {
+		"dockerfile": "Dockerfile",
+		// Update 'VARIANT' to pick an Ubuntu version: hirsute, focal, bionic
+		// Use hirsute or bionic on local arm64/Apple Silicon.
+		"args": { "VARIANT": "focal" }
+	},
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"editor.formatOnSave": true,
+		"editor.formatOnSaveMode": "modificationsIfAvailable",
+		"[terraform]": {
+			"editor.defaultFormatter": "hashicorp.terraform",
+			"editor.formatOnSave": true,
+			"editor.formatOnSaveMode": "file"
+		},
+		"[terraform-vars]": {
+			"editor.defaultFormatter": "hashicorp.terraform",
+			"editor.formatOnSave": true,
+			"editor.formatOnSaveMode": "file"
+		}
+	},
+
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"github.vscode-pull-request-github",
+		"github.remotehub",
+		"donjayamanne.githistory",
+		"eamodio.gitlens",
+		"esbenp.prettier-vscode",
+		"mhutchie.git-graph",
+		"ms-vscode.powershell",
+		"ms-azuretools.vscode-docker",
+		"shinotatwu-ds.file-tree-generator",
+		"ms-vsliveshare.vsliveshare-pack",
+		"hediet.vscode-drawio",
+		"donjayamanne.git-extension-pack",
+		"KnisterPeter.vscode-github",
+		"vscode-icons-team.vscode-icons",
+		"azapi-vscode.azapi",
+		"hashicorp.terraform",
+		"github.vscode-github-actions",
+		"me-dutour-mathieu.vscode-github-actions"
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bash postCreateCommand.sh",
+
+	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	"features": {
+		"kubectl-helm-minikube": "latest",
+		// "terraform": "1.0.4",
+		"git": "latest",
+		"github-cli": "latest",
+		"azure-cli": "latest",
+		"powershell": "latest",
+		"docker-in-docker": "latest"
+	}
+}

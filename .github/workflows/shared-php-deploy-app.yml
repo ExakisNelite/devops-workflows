@@ -1,0 +1,237 @@
+name: 🚀 Deployment of a PHP application to Virtual Machine
+
+on:
+  workflow_call:
+    inputs:
+      vm_host:
+        description: 'VM host IP address'
+        required: true
+        type: string
+      vm_path:
+        description: 'Deployment path on VM'
+        required: false
+        type: string
+        default: '/var/www/html'
+      artifact_name:
+        description: 'Name of the artifact to deploy'
+        required: true
+        type: string
+      backup_path:
+        description: 'Path where backups will be stored on VM'
+        required: false
+        type: string
+        default: '/tmp'
+    secrets:
+      VM_SSH_KEY:
+        description: 'SSH private key for VM access'
+        required: true
+      VM_USER:
+        description: 'SSH user for VM access'
+        required: true
+
+jobs:
+  deploy-vm:
+    name: 🚀 Deploy to VM (${{ inputs.vm_host }})
+    runs-on: self-hosted
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - name: 🔍 Verify artifact exists and target is safe
+        run: |
+          run_id=${{ github.run_id }}
+          artifact_response=$(curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts")
+
+          artifact_count=$(echo "$artifact_response" | jq -r ".artifacts[] | select(.name == \"${{ inputs.artifact_name }}\") | .name" | wc -l)
+
+          if [ "$artifact_count" -eq 0 ]; then
+            echo "❌ Artifact '${{ inputs.artifact_name }}' not found"
+            echo "Available artifacts:"
+            echo "$artifact_response" | jq -r '.artifacts[].name' || echo "No artifacts found"
+            exit 1
+          else
+            echo "✅ Artifact '${{ inputs.artifact_name }}' found and ready for download"
+          fi
+
+          # Setup SSH key for VM checks
+          echo "${{ secrets.VM_SSH_KEY }}" > /tmp/ssh_key_check
+          chmod 600 /tmp/ssh_key_check
+
+          # Check if file already exists on VM
+          if timeout 60 ssh -i /tmp/ssh_key_check -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" "test -f /tmp/${{ inputs.artifact_name }}"; then
+            echo "⚠️ File '/tmp/${{ inputs.artifact_name }}' already exists on VM"
+            echo "Removing existing file for safe deployment..."
+            timeout 60 ssh -i /tmp/ssh_key_check -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" "rm -f /tmp/${{ inputs.artifact_name }}"
+            echo "✅ Existing file removed"
+          else
+            echo "✅ Target path is clear on VM"
+          fi
+
+          # Cleanup temporary SSH key
+          rm /tmp/ssh_key_check
+
+      - name: ⬇️ Download build artifact
+        run: |
+          run_id="${{ github.run_id }}"
+          artifact_response=$(curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts")
+          artifact_url=$(echo "$artifact_response" | jq -r ".artifacts[] | select(.name == \"${{ inputs.artifact_name }}\") | .archive_download_url")
+
+          curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "$artifact_url" -o "/tmp/${{ inputs.artifact_name }}.zip"
+
+          cd /tmp
+          # GitHub artifacts are ZIP files, try different extraction methods
+          if command -v unzip >/dev/null 2>&1; then
+            unzip "${{ inputs.artifact_name }}.zip"
+          elif command -v python3 >/dev/null 2>&1; then
+            python3 -m zipfile -e "${{ inputs.artifact_name }}.zip" .
+          else
+            # Fallback: some tar versions support ZIP files with -Z flag
+            tar -Zxf "${{ inputs.artifact_name }}.zip"
+          fi
+          rm "${{ inputs.artifact_name }}.zip"
+
+          # Find the extracted content (could be a directory or file)
+          extracted_content=$(find /tmp -maxdepth 1 -mindepth 1 -not -name ssh_key -not -name "clr-debug-pipe*" -not -name "com.apple*" | head -1 | sed 's|^/tmp/||')
+          echo "Extracted content: $extracted_content"
+
+      - name: 🔑 Setup SSH key
+        run: |
+          echo "${{ secrets.VM_SSH_KEY }}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+
+      - name: 📤 Copy artifact to VM
+        run: |
+          echo "All files in /tmp:"
+          ls -la /tmp/
+
+          # Find the actual extracted artifact (look for specific patterns first)
+          extracted_content=""
+
+          # Try to find tar.gz files first
+          extracted_content=$(cd /tmp && find . -maxdepth 1 -name "${{ inputs.artifact_name }}*.tar.gz" -type f | head -1 | sed 's|^\./||')
+
+          # If no tar.gz, look for zip files
+          if [ -z "$extracted_content" ]; then
+            extracted_content=$(cd /tmp && find . -maxdepth 1 -name "${{ inputs.artifact_name }}*.zip" -type f | head -1 | sed 's|^\./||')
+          fi
+
+          # Fallback to general search (exclude pipes, ssh_key, and system files)
+          if [ -z "$extracted_content" ]; then
+            extracted_content=$(cd /tmp && find . -maxdepth 1 -type f | grep -v ssh_key | grep -v "clr-debug-pipe" | grep -v "com.apple" | head -1 | sed 's|^\./||')
+          fi
+
+          echo "Found extracted content: $extracted_content"
+
+          if [ -z "$extracted_content" ]; then
+            echo "No suitable file found to copy"
+            exit 1
+          fi
+
+          echo "File details: $(ls -lh "/tmp/$extracted_content")"
+
+          timeout 300 scp -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            "/tmp/$extracted_content" \
+            "${{ secrets.VM_USER }}@${{ inputs.vm_host }}:/tmp/" || {
+            echo "SCP failed or timed out"
+            exit 1
+          }
+
+      - name: 🔌 Test SSH connection
+        run: |
+          echo "Testing SSH connection to VM..."
+          timeout 60 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" 'echo "SSH connection successful"'
+
+      - name: 🚀 Deploy on VM
+        run: |
+          echo "Deploying extracted file to PHP directory..."
+          timeout 120 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" << 'DEPLOY_SCRIPT'
+            echo "=== DEPLOYMENT RUNNING ON TARGET VM ==="
+            echo "Hostname: $(hostname)"
+            echo "IP Address: $(hostname -I)"
+            echo "Current user: $(whoami)"
+            echo "User ID: $(id)"
+            echo "==========================================="
+
+            # Create target directory if it does not exist
+            echo "Creating directory: ${{ inputs.vm_path }}"
+            sudo mkdir -p "${{ inputs.vm_path }}"
+            echo "Directory created, checking if it exists:"
+            sudo ls -la "${{ inputs.vm_path }}"
+
+            # Create backup of existing deployment if it exists
+            if [ -d "${{ inputs.vm_path }}" ] && [ "$(ls -A "${{ inputs.vm_path }}" 2>/dev/null)" ]; then
+              BACKUP_DIR="${{ inputs.backup_path }}/backup-$(date +%Y%m%d-%H%M%S)"
+              echo "📦 Creating backup of existing deployment..."
+              echo "Backup directory: $BACKUP_DIR"
+              sudo mkdir -p "${{ inputs.backup_path }}"
+              sudo cp -r "${{ inputs.vm_path }}" "$BACKUP_DIR"
+              echo "✅ Backup created at $BACKUP_DIR"
+              echo "Backup contents:"
+              sudo ls -la "$BACKUP_DIR"
+            else
+              echo "📦 No existing deployment found - no backup needed"
+            fi
+
+            # Simple deployment - just extract the tar.gz file
+            cd /tmp
+            echo "Working in directory: $(pwd)"
+            echo "Available files:"
+            ls -la "${{ inputs.artifact_name }}"*.tar.gz 2>/dev/null || echo "No tar.gz files found"
+
+            # Find and extract the tar.gz file directly
+            TAR_FILE=$(ls "${{ inputs.artifact_name }}"*.tar.gz 2>/dev/null | head -1)
+            if [ -n "$TAR_FILE" ]; then
+              echo "Found tar.gz file: $TAR_FILE"
+              echo "Extracting $TAR_FILE to ${{ inputs.vm_path }}"
+              sudo tar -xzf "$TAR_FILE" -C "${{ inputs.vm_path }}"
+              echo "✅ Extracted $TAR_FILE to ${{ inputs.vm_path }}"
+            else
+              echo "No tar.gz file found, checking for zip files..."
+              ZIP_FILE=$(ls "${{ inputs.artifact_name }}"*.zip 2>/dev/null | head -1)
+              if [ -n "$ZIP_FILE" ]; then
+                echo "Found zip file: $ZIP_FILE"
+                echo "Extracting $ZIP_FILE to ${{ inputs.vm_path }}"
+                sudo unzip -o "$ZIP_FILE" -d "${{ inputs.vm_path }}"
+                echo "✅ Extracted $ZIP_FILE to ${{ inputs.vm_path }}"
+              else
+                echo "❌ No ${{ inputs.artifact_name }} files found in /tmp"
+                echo "Available files:"
+                ls -la
+                exit 1
+              fi
+            fi
+
+            echo "Contents of ${{ inputs.vm_path }}:"
+            ls -la "${{ inputs.vm_path }}"
+
+            # Verify persistence - check file ownership and permissions
+            echo "=== PERSISTENCE CHECK ==="
+            echo "Directory ownership and permissions:"
+            sudo ls -ld "${{ inputs.vm_path }}"
+            echo "Parent directory (/var/www) contents:"
+            sudo ls -la /var/www/
+            echo "Filesystem info:"
+            df -h "${{ inputs.vm_path }}"
+            echo "=========================="
+
+            echo "🎉 Deployment to VM completed successfully"
+          DEPLOY_SCRIPT
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          # Cleanup PHP app tar.gz and zip files on VM first (while SSH key is still available)
+          if [ -f /tmp/ssh_key ]; then
+            timeout 60 ssh -i /tmp/ssh_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes "${{ secrets.VM_USER }}@${{ inputs.vm_host }}" \
+              'rm -f /tmp/${{ inputs.artifact_name }}*.tar.gz /tmp/${{ inputs.artifact_name }}*.zip && echo "✅ Cleanup: ${{ inputs.artifact_name }} files removed from VM"' 2>/dev/null || echo "⚠️ Could not cleanup VM files"
+          fi
+
+          # Remove SSH key
+          rm -f /tmp/ssh_key
+
+          # Cleanup PHP app tar.gz and zip files on runner
+          rm -f /tmp/${{ inputs.artifact_name }}*.tar.gz /tmp/${{ inputs.artifact_name }}*.zip
+          echo "✅ Cleanup: ${{ inputs.artifact_name }} files removed from runner"
+
+          echo "🧹 Cleanup completed"

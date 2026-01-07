@@ -1,0 +1,67 @@
+name: Demande de Support WORKFLOWS
+description: Soumettez une demande de support pour tout problème ou question liés aux workflows partagés GitHub Actions.
+labels: ["cap-workflows-support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Avant de soumettre une demande de support, veuillez vérifier si votre question ou problème n'a pas déjà été traité dans les issues existantes.
+
+        ---
+
+        Merci de prendre le temps de soumettre cette demande. Pour traiter votre demande le plus rapidement possible, nous avons besoin des informations suivantes.
+  - type: dropdown
+    id: modules-concerned
+    attributes:
+      label: Workflow Concerné
+      description: "Sélectionnez le workflow concerné par votre demande."
+      options:
+        - shared-create-release
+        - shared-tf-build-check-deploy-multirepos
+        - shared-tf-build-check-deploy
+        - shared-tf-build-check
+        - shared-tf-deploy
+        - shared-tf-destroy-multirepos
+        - shared-tf-destroy
+        - autres (merci de préciser dans la description)
+    validations:
+      required: true
+  - type: input
+    id: version-workflows
+    attributes:
+      label: Version des workflows
+      description: "Veuillez fournir la version des workflows CAP concernés par votre demande."
+      placeholder: "ex. v0.0.28"
+    validations:
+      required: true
+  - type: textarea
+    id: probleme-description
+    attributes:
+      label: Description du Problème
+      description: "Quel est le problème rencontré ?"
+    validations:
+      required: true
+  - type: textarea
+    id: etapes-reproduction
+    attributes:
+      label: Étapes pour Reproduire
+      description: "Quelles étapes devons-nous suivre pour reproduire ce problème ?"
+  - type: checkboxes
+    id: checklist-preliminaire
+    attributes:
+      label: Vérification Préliminaire
+      description: "Cochez tout ce qui a été vérifié ou tenté."
+      options:
+        - label: "J'ai vérifié la documentation officielle pour une solution."
+        - label: "J'ai recherché dans les issues existantes pour des problèmes similaires."
+        - label: "J'ai redémarré mon service/mon serveur."
+        - label: "J'ai vérifié les paramètres de configuration."
+        - label: "J'ai mis à jour vers la dernière version de la plateforme/du service."
+        - label: "J'ai sacrifié un poulet pour apaiser les dieux du code."
+    
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sorties de Log Pertinentes
+      description: "Si applicable, fournissez des sorties de log pertinentes. Pas besoin de backticks ici."
+      render: shell

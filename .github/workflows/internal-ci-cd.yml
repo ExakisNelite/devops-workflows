@@ -1,0 +1,45 @@
+name: Continuous Integration for CAP Shared Workflows
+
+on:
+    push:
+      branches:
+        - main
+        - 'feature/**'
+        - 'release/**'
+        - 'hotfix/**'
+    pull_request:
+      branches:
+        - main
+        - 'feature/**'
+        - 'release/**'
+        - 'hotfix/**'
+
+permissions:
+    id-token: write         # This is required for requesting the JWT for OIDC.
+    actions: write          # This is required to read/write workflows, workflow runs and artifacts.
+    contents: write         # This is required for actions/checkout and to read/write repository contents, commits, branches, downloads, releases, and merges.
+    pull-requests: write    # This is required to read/write pull requests and related comments, assignees, labels, milestones, and merges.
+    packages: read          # This is required to publish and delete packages in GitHub Packages.
+    security-events: write  # This is required for the Checkov composite action to upload report to the GitHub Advanced Security tab
+    statuses: write         # This is required to read/write commit statuses.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout working directory
+        uses: actions/checkout@v5
+
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        shell: bash
+
+      - name: Check workflow files
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+

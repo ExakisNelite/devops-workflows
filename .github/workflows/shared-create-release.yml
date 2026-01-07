@@ -1,0 +1,450 @@
+name: "🚀 Create Release"
+on:
+  workflow_call:
+    inputs:
+      TARGET_REPOSITORY:
+        required: false
+        type: string
+        default: ${{ github.repository }}
+        description: "The name of the repository where the release should be created. If not specified, uses the current repository."
+      TARGET_BRANCH:
+        description: "Target Branch to checkout"
+        required: false
+        type: string
+        default: ${{ github.ref }}
+      WORKFLOWS_ORGANIZATION:
+        required: false
+        type: string
+        default: "meilleurtaux"
+      WORKFLOWS_REPOSITORY:
+        required: false
+        type: string
+        default: "cap-workflows"
+        description: "The name of the workflows repository."
+      WORKFLOWS_TARGET_BRANCH:
+        description: "Target Branch to checkout"
+        required: false
+        type: string
+        default: "main"
+      ENVIRONMENT:
+        required: false
+        type: string
+        default: production
+        description: "The environment to deploy to"
+      MAIN_BRANCH_TARGET_REPOSITORY:
+        required: false
+        type: string
+        default: main
+        description: "The main branch of the target repository"
+      DEFAULT_BUMP:
+        required: false
+        type: string
+        default: patch
+        description: "The default bump to use when creating a new release. Can be major, minor, or patch."
+      SHOULD_TAG_MAJOR:
+        required: false
+        type: boolean
+        default: false
+        description: "If set to true, the major tag will be updated to point to the major release version."
+      SHOULD_TAG_LATEST:
+        required: false
+        type: boolean
+        default: false
+        description: "If set to true, the latest tag will be updated to point to the latest release."
+      RELEASE_NOTES_FOLDER:
+        required: false
+        type: string
+        default: ".github/docs/release-notes/"
+        description: "Path where the release notes markdown files are stored."
+      SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE:
+        required: false
+        type: boolean
+        default: false
+        description: "If set to true, the release notes will be published to Confluence."
+      GH_APP_ID:
+        required: false
+        type: string
+        default: ""
+        description: "GitHub App ID"
+      CONFLUENCE_BASE_URL:
+        required: false
+        type: string
+        default: "https://meilleurtaux.atlassian.net/wiki/"
+        description: "Base URL for Confluence instance, e.g., https://meilleurtaux.atlassian.net/wiki/"
+      CONFLUENCE_EMAIL:
+        required: false
+        type: string
+        default: "compte.service.mtx@meilleurtaux.com"
+        description: "Email address associated with your Confluence account."
+      CONFLUENCE_SPACE_KEY:
+        required: false
+        type: string
+        default: ""
+        description: "The key of the Confluence space where the release notes will be published."
+      CONFLUENCE_PARENT_PAGE_ID:
+        required: false
+        type: string
+        default: ""
+        description: "The ID of the parent Confluence page under which the release notes page will be created."
+      CONFLUENCE_MAP_PATH:
+        required: false
+        type: string
+        default: "confluence-map.yml"
+        description: "Path to the confluence-map.yml file relative to the workspace root."
+      SHOULD_GENERATE_RELEASE_NOTE:
+        required: false
+        type: boolean
+        default: false
+        description: "If set to true, a release note will be generated for the release."
+      JIRA_BASE_URL:
+        required: false
+        type: string
+        default: "https://meilleurtaux.atlassian.net"
+        description: "Base URL for JIRA instance, e.g., https://meilleurtaux.atlassian.net"
+      JIRA_PROJECT_KEY:
+        required: false
+        type: string
+        description: "The key of the JIRA project to go browse work items on."
+      JIRA_EMAIL:
+        required: false
+        type: string
+        description: "Email address associated with the JIRA account used to browse work items."
+    secrets:
+      GH_APP_PRIVATE_KEY:
+        required: false
+        description: "GitHub App Private Key"
+      CONFLUENCE_API_TOKEN:
+        required: false
+        description: "API token generated from the Confluence account for authentication."
+      JIRA_API_TOKEN:
+        required: false
+        description: "API token generated from the JIRA account for authentication."
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ENVIRONMENT }}
+    steps:
+      - name: Checkout Caller Repository
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.TARGET_REPOSITORY }}
+          ref: ${{ inputs.TARGET_BRANCH }}
+      - name: Generate token for GitHub App
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE || inputs.SHOULD_GENERATE_RELEASE_NOTE }}
+        id: generate-token
+        uses: getsentry/action-github-app-token@v3.0.0
+        with:
+          app_id: ${{ inputs.GH_APP_ID }}
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      - name: Check repository access
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE || inputs.SHOULD_GENERATE_RELEASE_NOTE }}
+        run: |
+          REPO="${{ inputs.TARGET_REPOSITORY }}"
+          echo "Checking repository: $REPO"
+
+          # Vérifier que l'application GitHub a accès au dépôt
+          gh api repos/$REPO --silent -H "Authorization: token ${{ env.GH_TOKEN }}" && echo "✅ Repository access OK" || echo "❌ Cannot access repository with token"
+
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+      - name: Checkout Shared Workflows Repository
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE || inputs.SHOULD_GENERATE_RELEASE_NOTE }}
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.WORKFLOWS_ORGANIZATION }}/${{ inputs.WORKFLOWS_REPOSITORY }}
+          ref: ${{ inputs.WORKFLOWS_TARGET_BRANCH }}
+          token: ${{ steps.generate-token.outputs.token }}
+          path: ${{ inputs.WORKFLOWS_REPOSITORY }}
+      - name: Setup Node.js
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: cap-workflows/package.json
+      - name: Bump version and push tag
+        id: create_tag
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
+        with:
+          release_branches: ${{ inputs.MAIN_BRANCH_TARGET_REPOSITORY }}
+          default_bump: ${{ inputs.DEFAULT_BUMP }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: ${{ github.event_name == 'pull_request' }}
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836
+        if: steps.create_tag.outputs.new_version
+        with:
+          tag_name: ${{ steps.create_tag.outputs.new_tag }}
+          name: Release ${{ steps.create_tag.outputs.new_tag }}
+          body: ${{ steps.create_tag.outputs.changelog }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: ${{ github.event_name == 'pull_request' }}
+      - name: Generate Release Note Markdown format
+        id: generate-release-note
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE }}
+        run: |
+          $filePath = & "./cap-workflows/.github/scripts/generate-release-note.ps1" `
+            -GitHubWorkspace "${{ github.workspace }}" `
+            -ReleaseNotesFolder "$env:RELEASE_NOTES_FOLDER" `
+            -ReleaseNumber "$env:RELEASE_NUMBER" `
+            -GitHubRepository "$env:TARGET_REPOSITORY" `
+            -PullRequestId "$env:PULL_REQUEST_ID" `
+            -JiraBaseUrl "$env:JIRA_BASE_URL" `
+            -JiraProjectKey "$env:JIRA_PROJECT_KEY" `
+            -JiraEmail "$env:JIRA_EMAIL" `
+            -JiraApiToken "$env:JIRA_API_TOKEN"
+          $filePath = $filePath.Trim()
+          echo "filePath=$filePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+        env:
+          RELEASE_NUMBER: ${{ steps.create_tag.outputs.new_tag }}
+          TARGET_REPOSITORY: ${{ inputs.TARGET_REPOSITORY }}
+          PULL_REQUEST_ID: ${{ github.event.pull_request.number }}
+          RELEASE_NOTES_FOLDER: ${{ inputs.RELEASE_NOTES_FOLDER }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          JIRA_BASE_URL: ${{ inputs.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ inputs.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ inputs.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      - name: Add Release Note Markdown to Confluence Mapping file
+        id: add-release-note-to-confluence-map
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE }}
+        run: |
+          try {
+            Write-Host "🔄 Adding release note to confluence-map.yml..."
+            $confluenceMapPath = & "./cap-workflows/.github/scripts/add-release-note-to-confluence-map.ps1" `
+              -GitHubWorkspace "${{ github.workspace }}" `
+              -ReleaseNoteFilePath "$env:NEW_RELEASE_NOTE_FILE" `
+              -ReleaseNumber "$env:RELEASE_NUMBER" `
+              -ConfluenceParentPageId "$env:CONFLUENCE_PARENT_PAGE_ID" `
+              -ConfluenceMapPath "$env:CONFLUENCE_MAP_PATH"
+            
+            if ($confluenceMapPath) {
+              Write-Host "✅ Confluence map updated successfully at: $confluenceMapPath"
+              echo "filePath=$confluenceMapPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            } else {
+              Write-Warning "⚠️ No file path returned from script"
+              echo "filePath=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            }
+          }
+          catch {
+            Write-Error "❌ Error updating confluence map: $_"
+            echo "filePath=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 1
+          }
+        env:
+          NEW_RELEASE_NOTE_FILE: ${{ steps.generate-release-note.outputs.filePath }}
+          RELEASE_NUMBER: ${{ steps.create_tag.outputs.new_tag }}
+          CONFLUENCE_PARENT_PAGE_ID: ${{ inputs.CONFLUENCE_PARENT_PAGE_ID }}
+          CONFLUENCE_MAP_PATH: ${{ inputs.CONFLUENCE_MAP_PATH }}
+        shell: pwsh
+      - name: Commit Release Note Markdown format
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE && steps.generate-release-note.outputs.filePath != '' }}
+        run: |
+          sourceBranch="$SOURCE_BRANCH"
+
+          echo "File to commit: $file on branch $sourceBranch"
+          # remove workspace path from $file to get relative path
+          workspace="${{ github.workspace }}"
+          if [[ "$file" == "$workspace"/* ]]; then
+            file="${file#"$workspace"/}"
+          fi
+
+          echo "Add, Commit Signed And Push \"$file\" on branch \"$sourceBranch\""
+          commitMessage="docs: Release Note \"$file\" created/updated [skip ci]"
+
+          # Fetch the current SHA of the file to be updated
+          SHA=$(gh api "repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file?ref=$sourceBranch" -H "Authorization: token $GH_TOKEN" | jq -r .sha || echo "")
+
+          # Encode the file content in base64
+          CONTENT=$(base64 "$file")
+
+          echo "Updating \"$file\" with SHA $SHA"
+
+          # Prepare the GitHub API endpoint
+          API_ENDPOINT="repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file"
+
+          # Use the GitHub CLI to create or update the file
+          gh api "$API_ENDPOINT" \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $GH_TOKEN" \
+            -f message="$commitMessage" \
+            -f content="$CONTENT" \
+            -f branch="$sourceBranch" \
+            -f sha="$SHA"
+
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          file: ${{ steps.generate-release-note.outputs.filePath }}
+          SOURCE_BRANCH: ${{ github.head_ref }}
+      - name: Commit Confluence Mapping file Updated with new Release Note
+        if: ${{ github.event_name == 'pull_request' && github.base_ref == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE && steps.add-release-note-to-confluence-map.outputs.filePath != '' }}
+        run: |
+          sourceBranch="$SOURCE_BRANCH"
+
+          echo "File to commit: $file on branch $sourceBranch"
+          # remove workspace path from $file to get relative path
+          workspace="${{ github.workspace }}"
+          if [[ "$file" == "$workspace"/* ]]; then
+            file="${file#"$workspace"/}"
+          fi
+
+          echo "Add, Commit Signed And Push \"$file\" on branch \"$sourceBranch\""
+          commitMessage="docs: Update Confluence Mapping file with Release Note \"$file\" [skip ci]"
+
+          # Fetch the current SHA of the file to be updated
+          SHA=$(gh api "repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file?ref=$sourceBranch" -H "Authorization: token $GH_TOKEN" | jq -r .sha || echo "")
+
+          # Encode the file content in base64
+          CONTENT=$(base64 "$file")
+
+          echo "Updating \"$file\" with SHA $SHA"
+
+          # Prepare the GitHub API endpoint
+          API_ENDPOINT="repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file"
+
+          # Use the GitHub CLI to create or update the file
+          gh api "$API_ENDPOINT" \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $GH_TOKEN" \
+            -f message="$commitMessage" \
+            -f content="$CONTENT" \
+            -f branch="$sourceBranch" \
+            -f sha="$SHA"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          file: ${{ steps.add-release-note-to-confluence-map.outputs.filePath }}
+          SOURCE_BRANCH: ${{ github.head_ref }}
+      - name: Update Release Note with GitHub Release URL
+        id: update-release-note-with-url
+        if: ${{ github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE && steps.create_release.outputs.url }}
+        run: |
+          Write-Host "🔗 Mise à jour de la release note avec l'URL de la release GitHub..." -ForegroundColor Cyan
+          $filePath = & "./cap-workflows/.github/scripts/generate-release-note.ps1" `
+            -GitHubWorkspace "${{ github.workspace }}" `
+            -ReleaseNotesFolder "$env:RELEASE_NOTES_FOLDER" `
+            -ReleaseNumber "$env:RELEASE_NUMBER" `
+            -GitHubRepository "$env:TARGET_REPOSITORY" `
+            -JiraBaseUrl "$env:JIRA_BASE_URL" `
+            -JiraProjectKey "$env:JIRA_PROJECT_KEY" `
+            -JiraEmail "$env:JIRA_EMAIL" `
+            -JiraApiToken "$env:JIRA_API_TOKEN" `
+            -GitHubReleaseUrl "$env:GITHUB_RELEASE_URL" `
+            -UpdateUrlOnly
+          $filePath = $filePath.Trim()
+          echo "filePath=$filePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "✅ Release note mise à jour avec l'URL de la release: $env:GITHUB_RELEASE_URL" -ForegroundColor Green
+        shell: pwsh
+        env:
+          RELEASE_NUMBER: ${{ steps.create_tag.outputs.new_tag }}
+          TARGET_REPOSITORY: ${{ inputs.TARGET_REPOSITORY }}
+          RELEASE_NOTES_FOLDER: ${{ inputs.RELEASE_NOTES_FOLDER }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          JIRA_BASE_URL: ${{ inputs.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ inputs.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ inputs.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          GITHUB_RELEASE_URL: ${{ steps.create_release.outputs.url }}
+      - name: Commit Updated Release Note with GitHub Release URL
+        if: ${{ github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY && inputs.SHOULD_GENERATE_RELEASE_NOTE && steps.update-release-note-with-url.outputs.filePath != '' }}
+        run: |
+          # Clean up the file path - remove any duplicates and trim whitespace
+          file=$(echo "$file" | tr ' ' '\n' | head -1 | xargs)
+          sourceBranch="${{ inputs.TARGET_BRANCH }}"
+
+          echo "File to commit: $file on branch $sourceBranch"
+          # remove workspace path from $file to get relative path
+          workspace="${{ github.workspace }}"
+          if [[ "$file" == "$workspace"/* ]]; then
+            file="${file#"$workspace"/}"
+          fi
+
+          echo "Add, Commit Signed And Push \"$file\" on branch \"$sourceBranch\""
+          commitMessage="docs: Update release note with GitHub release URL [skip ci]"
+
+          # Fetch the current SHA of the file to be updated
+          SHA=$(gh api "repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file?ref=$sourceBranch" -H "Authorization: token $GH_TOKEN" | jq -r .sha || echo "")
+
+          # Encode the file content in base64
+          CONTENT=$(base64 "$file")
+
+          echo "Updating \"$file\" with SHA $SHA"
+
+          # Prepare the GitHub API endpoint
+          API_ENDPOINT="repos/${{ inputs.TARGET_REPOSITORY }}/contents/$file"
+
+          # Use the GitHub CLI to create or update the file
+          gh api "$API_ENDPOINT" \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token $GH_TOKEN" \
+            -f message="$commitMessage" \
+            -f content="$CONTENT" \
+            -f branch="$sourceBranch" \
+            -f sha="$SHA"
+
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          file: ${{ steps.update-release-note-with-url.outputs.filePath }}
+      - name: Check Confluence mapping file
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE }}
+        run: |
+          if [ ! -f "${{ inputs.CONFLUENCE_MAP_PATH }}" ]; then
+            echo "❌ Error: ${{ inputs.CONFLUENCE_MAP_PATH }} file not found!"
+            echo "This file is required to define the mapping between markdown files and Confluence pages."
+            exit 1
+          fi
+          echo "✅ ${{ inputs.CONFLUENCE_MAP_PATH }} file found"
+          echo "Confluence mapping configuration:"
+          cat "${{ inputs.CONFLUENCE_MAP_PATH }}"
+      - name: Install NPM dependencies
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE }}
+        working-directory: cap-workflows
+        run: npm install
+      - name: Simulate Release Note Publishing to Confluence
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE }}
+        working-directory: cap-workflows
+        env:
+          CONFLUENCE_BASE_URL: ${{ inputs.CONFLUENCE_BASE_URL }}
+          CONFLUENCE_EMAIL: ${{ inputs.CONFLUENCE_EMAIL }}
+          CONFLUENCE_SPACE_KEY: ${{ inputs.CONFLUENCE_SPACE_KEY }}
+          CONFLUENCE_DEFAULT_PARENT_ID: ${{ inputs.CONFLUENCE_PARENT_PAGE_ID }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+        run: node scripts/confluencePublisher.js --manifest "../${{ inputs.CONFLUENCE_MAP_PATH }}" --dry-run
+      - name: Publish Release Note to Confluence
+        if: ${{ inputs.SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE && github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY }}
+        working-directory: cap-workflows
+        env:
+          CONFLUENCE_BASE_URL: ${{ inputs.CONFLUENCE_BASE_URL }}
+          CONFLUENCE_EMAIL: ${{ inputs.CONFLUENCE_EMAIL }}
+          CONFLUENCE_SPACE_KEY: ${{ inputs.CONFLUENCE_SPACE_KEY }}
+          CONFLUENCE_DEFAULT_PARENT_ID: ${{ inputs.CONFLUENCE_PARENT_PAGE_ID }}
+          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+        run: node scripts/confluencePublisher.js --manifest "../${{ inputs.CONFLUENCE_MAP_PATH }}"
+      - name: Tag the major release version
+        if: ${{ inputs.SHOULD_TAG_MAJOR && github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY }}
+        uses: cloudposse/github-action-major-release-tagger@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add latest tag
+        if: ${{ inputs.SHOULD_TAG_LATEST && github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY && github.event_name == 'push' && github.ref_name == inputs.MAIN_BRANCH_TARGET_REPOSITORY }}
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Action"
+          git tag -fa latest -m "Update latest tag"
+          git push origin :refs/tags/latest
+          git push origin --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
