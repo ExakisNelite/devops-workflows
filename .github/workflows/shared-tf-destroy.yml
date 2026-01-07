@@ -108,7 +108,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
 
@@ -135,15 +135,15 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to GitHub to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
         env:
           UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-      # TODO: YWI, début partie à externaliser dans une action composite cap-action-terraform-workflow
-      # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
+      # TODO: Extract this section into a reusable composite action for Terraform workflows
+      # The composite action should support a collection of steps (init, fmt, validate, plan, show, apply, destroy)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
         with:
@@ -258,7 +258,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY}}
 
       - name: Upload Resulting Terraform as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT }}.out
