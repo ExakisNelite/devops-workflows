@@ -159,7 +159,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -172,7 +172,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHub Organization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
@@ -297,7 +297,7 @@ jobs:
         working-directory: ${{ inputs.CHECKOV_CONFIG_DIRECTORY}}
 
       - name: Checkov - Security Check
-        uses: meilleurtaux/cap-action-terraform-checkov@latest
+        uses: ExakisNelite/devops-action-terraform-checkov@latest
         with:
           WORKING_DIRECTORY: ${{ inputs.TESTS_DIRECTORY}}
           TFPLAN_FILE: tfplan-${{ inputs.ENVIRONMENT }}.json
@@ -306,7 +306,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
           ACTION: CloseOneIp
@@ -326,7 +326,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
 
       - name: Super Linter
-        uses: meilleurtaux/cap-action-terraform-superlinter@latest
+        uses: ExakisNelite/devops-action-terraform-superlinter@latest
         with:
           DEFAULT_BRANCH: ${{ inputs.DEFAULT_BRANCH }}
           DEFAULT_WORKSPACE: ${{ inputs.WORKING_DIRECTORY }}
@@ -354,7 +354,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
 
       - name: Terraform fmt
-        uses: meilleurtaux/cap-action-terraform-fmt@latest
+        uses: ExakisNelite/devops-action-terraform-fmt@latest
         with:
           TERRAFORM_VERSION: ${{ inputs.TERRAFORM_VERSION }}
           working-dir: ${{ inputs.WORKING_DIRECTORY}}

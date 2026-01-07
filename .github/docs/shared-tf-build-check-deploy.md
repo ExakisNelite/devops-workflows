@@ -11,7 +11,7 @@ This GitHub Actions workflow automates the build, validation process, and deploy
    - **Login with Azure CLI**: Authenticates with Azure CLI using the provided credentials.
    - **Open Resources Firewall**: Opens firewall rules for specified resources.
    - **Generate token for the Organization Reader GitHub App**: Generates a token to authenticate with the GitHub App for organization access.
-   - **Init the connection to meilleurtaux GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
+   - **Init the connection to ExakisNelite GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
    - **Setup Terraform**: Sets up Terraform with the specified version.
    - **Check if container exists, otherwise create it**: Ensures the Terraform state container exists in Azure Storage.
    - **Terraform Init**: Initializes the Terraform working directory and backend configuration.
@@ -25,16 +25,16 @@ This GitHub Actions workflow automates the build, validation process, and deploy
      - Adds a summary of plan changes to the workflow summary.
    - **Terraform Show**: Displays a detailed report of the Terraform execution plan.
    - **Checkov Exception**: Generates exceptions for Checkov security checks.
-   - **Checkov Security Check**: Performs a Checkov security check, see [cap-action-terraform-checkov](https://github.com/meilleurtaux/cap-action-terraform-checkov) for more information.
+   - **Checkov Security Check**: Performs a Checkov security check, see [devops-action-terraform-checkov](https://github.com/ExakisNelite/devops-action-terraform-checkov) for more information.
    - **Close Resources Firewall**: Closes firewall rules for specified resources.
 
 2. **SuperLinter**: Perform super-linter checks
    - **Checkout Working Directory**: Fetches the latest changes from the repository.
-   - **Super Linter**: Performs super-linter checks, see [cap-action-terraform-superlinter](https://github.com/meilleurtaux/cap-action-terraform-superlinter) for more information.
+   - **Super Linter**: Performs super-linter checks, see [devops-action-terraform-superlinter](https://github.com/ExakisNelite/devops-action-terraform-superlinter) for more information.
 
 3. **Terraform Fmt**: Perform Formatting Checks
    - **Checkout Working Directory**: Fetches the latest changes from the repository.
-   - **Terraform fmt**: Formats Terraform files, see [cap-action-terraform-fmt](https://github.com/meilleurtaux/cap-action-terraform-fmt) for more information.
+   - **Terraform fmt**: Formats Terraform files, see [devops-action-terraform-fmt](https://github.com/ExakisNelite/devops-action-terraform-fmt) for more information.
 
 4. **Generate Artifact Plan Name**: Generates the artifact plan name.
    - **Set Artifact Plan Name**: Builds an artifact plan name from the Terraform state file name.
@@ -44,7 +44,7 @@ This GitHub Actions workflow automates the build, validation process, and deploy
    - **Login with Azure CLI**: Authenticates with Azure CLI using provided credentials.
    - **Open Resources Firewall**: Opens firewall rules for specified resources.
    - **Generate token for the Organization Reader GitHub App**: Generates a token to authenticate with the GitHub App for organization access.
-   - **Init the connection to Meilleurtaux GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
+   - **Init the connection to ExakisNelite GitHubOrganization**: Initializes the connection to the organization to use Terraform modules.
    - **Setup Terraform**: Sets up Terraform with the specified version.
    - **Check if container exists, otherwise create it**: Ensures the Terraform state container exists in Azure Storage.
    - **Terraform Init**: Initializes the Terraform working directory and backend configuration.
@@ -66,7 +66,7 @@ This GitHub Actions workflow automates the build, validation process, and deploy
    - **Login with Azure CLI**: Authenticates with Azure CLI using provided credentials.
    - **Open Resources Firewall**: Opens firewall rules for specified resources.
    - **Generate token for the Organization Reader GitHub App**: Generates a token to authenticate with the GitHub App for organization access.
-   - **Init the connection to Meilleurtaux GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
+   - **Init the connection to ExakisNelite GitHubOrganization**: Initializes the connection to the organization to use Terraform modules.
    - **Setup Terraform**: Sets up Terraform with the specified version.
    - **Terraform Init**: Initializes the Terraform working directory and backend configuration.
    - **Terraform Validate**: Validates the Terraform configuration files.
@@ -162,7 +162,7 @@ Ensure the GitHub App is configured with these permissions to avoid workflow exe
 
 - **azure/login@v2**: Action to authenticate with Azure CLI using provided credentials.
 
-- **meilleurtaux/cap-action-firewall@latest**: Actions to manage firewall rules for specified resources.
+- **ExakisNelite/devops-action-firewall@latest**: Actions to manage firewall rules for specified resources.
 
 - **getsentry/action-github-app-token@v3.0.0**: Action to generate a token for authenticating with GitHub App.
 
@@ -190,7 +190,7 @@ permissions:
 
 jobs:
    build-check-and-deploy:
-      uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
+      uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
       with:
          ENVIRONMENT_CHECK: '<name of the github environment associated to the integration>'
          ENVIRONMENT_DEPLOYMENT: '<name of the github environment associated to the deployment>'
@@ -233,7 +233,7 @@ permissions:
 
 jobs:
    build-check-and-deploy:
-      uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
+      uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
       with:
          ENVIRONMENT_CHECK: '<name of the github environment associated to the integration>'
          ENVIRONMENT_DEPLOYMENT: '<name of the github environment associated to the deployment>'
@@ -278,7 +278,7 @@ permissions:
 
 jobs:
    build-check-and-deploy:
-      uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
+      uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
       with:
          # Other parameters...
          VARIABLES_FILE: './<path to the tfvars file ex: param.tfvars>'
@@ -303,7 +303,7 @@ permissions:
 
 jobs:
    build-check-and-deploy:
-      uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
+      uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy.yml@latest
       with:
          # Other parameters...
          RG_NAME_RESOURCES_TO_OPEN: 'my-azure-resources-rg'
@@ -321,7 +321,7 @@ This workflow combines the features of the `shared-tf-build-check` and `shared-t
 ```yaml
 jobs:
   build-check-deploy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy.yml@v0.1.7
     with:
       TERRAFORM_VERSION: '1.6.4'
       WORKING_DIRECTORY: './terraform'

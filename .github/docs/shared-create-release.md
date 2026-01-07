@@ -28,24 +28,16 @@ This GitHub Actions workflow automates the process of creating a new release for
 
 | Name               | Type    | Default     | Description                                                                 |
 |--------------------|---------|-------------|-----------------------------------------------------------------------------|
-| **repository**     | string  | current repository | The name of the repository where the release should be created. If not specified, uses the current repository. |
-| **dry_run**        | boolean | false       | If set to true, the workflow will run in dry-run mode, where it simulates the release creation process without actually creating a release. |
-| **environment**    | string  | production  | The environment to deploy to.                                              |
-| **main_branch_target_repository**    | string  | main        | The main branch of the target repository.                                         |
-| **default_bump**   | string  | patch       | The default bump to use when creating a new release. Can be `major`, `minor`, or `patch`. |
-| **should_tag_major** | boolean | false      | If set to true, the major tag will be updated to point to the major release version. |
-| **should_tag_latest** | boolean | false     | If set to true, the latest tag will be updated to point to the latest release. |
-| **should_generate_release_note** | boolean | false | If set to true, a release note will be generated automatically from Jira tickets and GitHub data. |
-| **release_notes_folder** | string | `.github/docs/release-notes/` | Path where the release notes markdown file will be generated. |
-| **should_publish_release_note_confluence** | boolean | false | If set to true, the release notes will be published to Confluence. |
-| **confluence_base_url** | string | `https://meilleurtaux.atlassian.net/wiki/` | Base URL for Confluence instance. |
-| **confluence_email** | string | `compte.service.mtx@meilleurtaux.com` | Email address associated with your Confluence account. |
-| **confluence_space_key** | string | empty | The key of the Confluence space where the release notes will be published. |
-| **confluence_parent_page_id** | string | empty | The ID of the parent Confluence page under which the release notes page will be created. |
-| **confluence_map_path** | string | `confluence-map.yml` | Path to the confluence-map.yml file relative to the workspace root. |
-| **jira_base_url** | string | `https://meilleurtaux.atlassian.net` | Base URL for Jira instance used for fetching ticket details. |
-| **jira_project_key** | string | empty | The key of the Jira project to browse work items (e.g., "CAP"). |
-| **jira_email** | string | empty | Email address associated with the Jira account used for API authentication. |
+| **TARGET_REPOSITORY** | string  | current repository | The name of the repository where the release should be created. If not specified, uses the current repository. |
+| **TARGET_BRANCH**  | string  | current ref | Target branch to checkout.                                                 |
+| **WORKFLOWS_ORGANIZATION** | string | ExakisNelite | Organization name for the workflows repository.                       |
+| **WORKFLOWS_REPOSITORY** | string | devops-workflows | The name of the workflows repository.                                |
+| **WORKFLOWS_TARGET_BRANCH** | string | main     | Target branch to checkout from the workflows repository.                   |
+| **ENVIRONMENT**    | string  | production  | The environment to deploy to.                                              |
+| **MAIN_BRANCH_TARGET_REPOSITORY** | string | main | The main branch of the target repository.                                  |
+| **DEFAULT_BUMP**   | string  | patch       | The default bump to use when creating a new release. Can be `major`, `minor`, or `patch`. |
+| **SHOULD_TAG_MAJOR** | boolean | false     | If set to true, the major tag will be updated to point to the major release version. |
+| **SHOULD_TAG_LATEST** | boolean | false    | If set to true, the latest tag will be updated to point to the latest release. |
 
 ## Required Permissions
 
@@ -56,7 +48,6 @@ To use this workflow, ensure that the GitHub App or token used has the following
 | **contents**       | write        | Required to push tags and create releases.                            |
 | **metadata**       | read         | Required to access repository metadata.                               |
 | **pull_requests**  | read         | Required to determine changes for version bumping.                    |
-| **issues**         | read         | Required to include issue references in release notes (if applicable).|
 
 Ensure these permissions are granted to the GitHub App or token used to execute the workflow.
 
@@ -120,7 +111,7 @@ name: Example Usage of shared-create-release
 
 jobs:
   create-release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-create-release.yml@latest
     with:
       ENVIRONMENT: 'release'
       DEFAULT_BUMP: 'minor'
@@ -135,7 +126,7 @@ name: Example Usage of shared-create-release
 
 jobs:
   create-release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-create-release.yml@latest
     with:
       ENVIRONMENT: 'release'
       DEFAULT_BUMP: 'minor'
@@ -149,54 +140,10 @@ name: Example Usage of shared-create-release
 
 jobs:
   create-release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-create-release.yml@latest
     with:
       ENVIRONMENT: 'release'
       DEFAULT_BUMP: 'minor'
-```
-
-### Create a release with Jira integration and release notes
-
-```yaml
-name: Example Usage of shared-create-release with Jira
-
-jobs:
-  create-release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@latest
-    with:
-      ENVIRONMENT: 'release'
-      DEFAULT_BUMP: 'minor'
-      SHOULD_GENERATE_RELEASE_NOTE: true
-      JIRA_BASE_URL: 'https://meilleurtaux.atlassian.net'
-      JIRA_PROJECT_KEY: 'CAP'
-      JIRA_EMAIL: 'compte.service.mtx@meilleurtaux.com'
-      RELEASE_NOTES_FOLDER: '.github/docs/release-notes/'
-    secrets:
-      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-```
-
-### Create a release with Confluence integration
-
-```yaml
-name: Example Usage of shared-create-release with Confluence
-
-jobs:
-  create-release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@latest
-    with:
-      ENVIRONMENT: 'release'
-      DEFAULT_BUMP: 'minor'
-      SHOULD_GENERATE_RELEASE_NOTE: true
-      SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE: true
-      JIRA_BASE_URL: 'https://meilleurtaux.atlassian.net'
-      JIRA_PROJECT_KEY: 'CAP'
-      JIRA_EMAIL: 'compte.service.mtx@meilleurtaux.com'
-      CONFLUENCE_SPACE_KEY: 'MYSPACE'
-      CONFLUENCE_PARENT_PAGE_ID: '123456789'
-      CONFLUENCE_MAP_PATH: 'confluence-map.yml'
-    secrets:
-      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-      CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
 ```
 
 ## How to use this workflow
@@ -206,7 +153,7 @@ To use this reusable workflow in your own GitHub Actions workflow, you can refer
 ```yaml
 jobs:
   release:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-create-release.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-create-release.yml@v0.1.7
     with:
       ENVIRONMENT: 'production'
       DEFAULT_BUMP: 'patch'
@@ -219,6 +166,3 @@ jobs:
 
 1. Make sure to use a specific version of the workflow (e.g., `@v0.1.7`) to ensure the stability of your pipeline
 2. Configure the access levels for the GitHub token correctly (permissions `contents: write` required)
-3. Use the input parameters to customize the release creation behavior
-4. **For Jira integration**: Set `SHOULD_GENERATE_RELEASE_NOTE` to `true` and provide the required Jira parameters (`JIRA_BASE_URL`, `JIRA_PROJECT_KEY`, `JIRA_EMAIL`) along with the `JIRA_API_TOKEN` secret
-5. **For Confluence publishing**: In addition to Jira integration, set `SHOULD_PUBLISH_RELEASE_NOTE_CONFLUENCE` to `true` and provide Confluence parameters (`CONFLUENCE_SPACE_KEY`, `CONFLUENCE_PARENT_PAGE_ID`) along with the `CONFLUENCE_API_TOKEN` secret

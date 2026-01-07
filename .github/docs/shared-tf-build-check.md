@@ -25,14 +25,14 @@ This GitHub Actions workflow automates the build and validation process for Terr
    13. **Terraform Show**: Displays a detailed report of the Terraform execution plan.
        - Converts the plan output to JSON format for Checkov analysis.
    14. **Checkov Exception**: Generates exceptions for Checkov security checks.
-   15. **Checkov Security Check**: Performs a Checkov security check, see [cap-action-terraform-checkov](https://github.com/meilleurtaux/cap-action-terraform-checkov) for more information.
+   15. **Checkov Security Check**: Performs a Checkov security check, see [devops-action-terraform-checkov](https://github.com/ExakisNelite/devops-action-terraform-checkov) for more information.
    16. **Close Resources Firewall**: Closes firewall rules for specified resources.
 2. **SuperLinter**: Perform super-linter checks
    1. **Checkout Working Directory**: Fetches the latest changes from the repository.
-   2. **Call Composite Action Superlinter**: Perform super-linter checks, see [cap-action-terraform-superlinter](https://github.com/meilleurtaux/cap-action-terraform-superlinter) for more information.
+   2. **Call Composite Action Superlinter**: Perform super-linter checks, see [devops-action-terraform-superlinter](https://github.com/ExakisNelite/devops-action-terraform-superlinter) for more information.
 3. **Terraform Fmt**: Perform Formatting Checks
    1. **Checkout Working Directory**: Fetches the latest changes from the repository.
-   2. **Call Composite Action Terraform Fmt**: Perform formatting checks, see [cap-action-terraform-fmt](https://github.com/meilleurtaux/cap-action-terraform-fmt) for more information.
+   2. **Call Composite Action Terraform Fmt**: Perform formatting checks, see [devops-action-terraform-fmt](https://github.com/ExakisNelite/devops-action-terraform-fmt) for more information.
 4. **Terraform Docs**: Generate documentation
    1. **Checkout Working Directory**: Fetches the latest changes from the repository.
    2. **Call Terraform Docs Action**: Generate documentation using Terraform Docs.
@@ -103,13 +103,13 @@ variable3 = true
 
 - **azure/login@v2**: Action to authenticate with Azure CLI using provided credentials.
 
-- **meilleurtaux/cap-action-firewall@latest**: Actions to manage firewall rules for specified resources.
+- **ExakisNelite/devops-action-firewall@latest**: Actions to manage firewall rules for specified resources.
 
-- **meilleurtaux/cap-action-terraform-checkov@latest**: Action to perform Checkov security analysis on the Terraform code.
+- **ExakisNelite/devops-action-terraform-checkov@latest**: Action to perform Checkov security analysis on the Terraform code.
 
-- **meilleurtaux/cap-action-terraform-superlinter@latest**: Action to perform linter format checks on the Terraform code.
+- **ExakisNelite/devops-action-terraform-superlinter@latest**: Action to perform linter format checks on the Terraform code.
 
-- **meilleurtaux/cap-action-terraform-fmt@latest**: Action to perform format checks on the Terraform code.
+- **ExakisNelite/devops-action-terraform-fmt@latest**: Action to perform format checks on the Terraform code.
 
 - **terraform-docs/gh-actions@v1.3.0**: Action to generate documentation for the Terraform code.
 
@@ -140,7 +140,7 @@ To use this reusable workflow in your own GitHub Actions workflow, you can refer
 ```yaml
 jobs:
   build-check:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check.yml@v0.1.7
     with:
       TERRAFORM_VERSION: '1.6.4'
       WORKING_DIRECTORY: './terraform'
@@ -182,7 +182,7 @@ permissions:
 
 jobs:
   build-and-check:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check.yml@latest
     with:
       WORKING_DIRECTORY: './<Folder containing the code of the resources>/'
       TESTS_DIRECTORY: './<Folder containing the tests of the resources>/'
@@ -226,7 +226,7 @@ permissions:
 
 jobs:
   build-and-check:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check.yml@latest
     with:
       WORKING_DIRECTORY: './<Folder containing the code of the resources>/'
       TESTS_DIRECTORY: './<Folder containing the tests of the resources>/'
@@ -272,7 +272,7 @@ permissions:
 
 jobs:
   build-and-check:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check.yml@latest
     with:
       WORKING_DIRECTORY: './<Folder containing the code of the resources>/'
       TESTS_DIRECTORY: './<Folder containing the tests of the resources>/'

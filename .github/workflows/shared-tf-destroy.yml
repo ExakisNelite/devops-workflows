@@ -122,7 +122,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -135,14 +135,14 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
         env:
           UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-      # TODO: YWI, début partie à externaliser dans une action composite cap-action-terraform-workflow
+      # TODO: YWI, début partie à externaliser dans une action composite devops-action-terraform-workflow
       # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
@@ -267,7 +267,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
           ACTION: CloseOneIp
@@ -310,7 +310,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -323,7 +323,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
@@ -366,7 +366,7 @@ jobs:
           
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
           ACTION: CloseOneIp

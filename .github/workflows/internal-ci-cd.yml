@@ -1,4 +1,4 @@
-name: Continuous Integration for CAP Shared Workflows
+name: Continuous Integration for DevOps Tools Shared Workflows
 
 on:
     push:

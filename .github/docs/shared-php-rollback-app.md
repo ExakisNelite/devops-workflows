@@ -11,7 +11,7 @@ Reference this workflow in your GitHub Actions YAML:
 ```yaml
 jobs:
   rollback:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-php-rollback-app.yml@main
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-php-rollback-app.yml@main
     with:
       vm_host: 'your-vm-ip'
       vm_path: '/var/www/html'

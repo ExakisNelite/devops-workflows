@@ -13,7 +13,7 @@ This GitHub Actions workflow automates the validation, and destruction of Terraf
    - **Login with Azure CLI**: Authenticates with Azure CLI using provided credentials.
    - **Open Resources Firewall**: Opens firewall rules for specified resources.
    - **Generate token for the Organization Reader GitHub App**: Generates a token to authenticate with the GitHub App for organization access.
-   - **Init the connection to Meilleurtaux GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
+   - **Init the connection to ExakisNelite GitHubOrganization**: Initializes the connection to the organization to use Terraform modules.
    - **Setup Terraform**: Sets up Terraform with the specified version.
    - **Check if container exists, otherwise create it**: Ensures the backend container exists in Azure Storage.
    - **Terraform Init**: Initializes the Terraform working directory and backend configuration.
@@ -32,7 +32,7 @@ This GitHub Actions workflow automates the validation, and destruction of Terraf
    - **Login with Azure CLI**: Authenticates with Azure CLI using provided credentials.
    - **Open Resources Firewall**: Opens firewall rules for specified resources.
    - **Generate token for the Organization Reader GitHub App**: Generates a token to authenticate with the GitHub App for organization access.
-   - **Init the connection to Meilleurtaux GitHub Organization**: Initializes the connection to the organization to use Terraform modules.
+   - **Init the connection to ExakisNelite GitHubOrganization**: Initializes the connection to the organization to use Terraform modules.
    - **Setup Terraform**: Sets up Terraform with the specified version.
    - **Terraform Init**: Initializes the Terraform working directory and backend configuration.
    - **Terraform Destroy**: Applies Terraform destructive changes if approved.
@@ -112,7 +112,7 @@ Ensure that the GitHub App is configured with these permissions to allow the wor
 
 - **actions/checkout@v5**: Action to checkout the working directory, fetching the latest changes from the repository.
 - **azure/login@v2**: Action to authenticate with Azure CLI using provided credentials.
-- **meilleurtaux/cap-action-firewall@latest**: Actions to manage firewall rules for specified resources.
+- **ExakisNelite/devops-action-firewall@latest**: Actions to manage firewall rules for specified resources.
 - **getsentry/action-github-app-token@v3.0.0**: Action to generate a token for authenticating with GitHub App.
 - **hashicorp/setup-terraform@v3.1.2**: Action to set up Terraform with the specified version.
 - **actions/upload-artifact@v4**: Action to upload artifact.
@@ -126,7 +126,7 @@ This workflow allows for controlled and secure destruction of deployed Terraform
 ```yaml
 jobs:
   destroy-infra:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy.yml@v0.1.7
     with:
       TERRAFORM_VERSION: '1.6.4'
       WORKING_DIRECTORY: './terraform'
@@ -169,7 +169,7 @@ permissions:
 
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy.yml@latest
     with:
       ENVIRONMENT: '<name of the GitHub environment associated>'
       WORKING_DIRECTORY: './<Folder containing the code of the resources>/'
@@ -205,7 +205,7 @@ permissions:
 
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy.yml@latest
     with:
       ENVIRONMENT: '<name of the GitHub environment associated>'
       WORKING_DIRECTORY: './<Folder containing the code of the resources>/'
@@ -241,7 +241,7 @@ permissions:
 
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy.yml@latest
     with:
       # Other parameters...
       VARIABLES_FILE: './<path to the tfvars file ex: param.tfvars>'
@@ -266,7 +266,7 @@ permissions:
 
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy.yml@latest
     with:
       # Other parameters...
       RG_NAME_RESOURCES_TO_OPEN: 'my-azure-resources-rg'

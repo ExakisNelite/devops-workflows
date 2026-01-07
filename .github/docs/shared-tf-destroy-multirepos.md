@@ -112,7 +112,7 @@ permissions:
 
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
     with:
       ENVIRONMENT: ${{ inputs.ENVIRONMENT }}
       RG_NAME_TFSTATE: 'my-resource-group'
@@ -140,7 +140,7 @@ jobs:
 ```yaml
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
     with:
       # Other parameters...
     secrets:
@@ -155,7 +155,7 @@ jobs:
 ```yaml
 jobs:
   destroy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@latest
     with:
       # Other parameters...
       RG_NAME_RESOURCES_TO_OPEN: 'my-azure-resources-rg'
@@ -173,7 +173,7 @@ This workflow allows for the destruction of Terraform infrastructure using varia
 ```yaml
 jobs:
   destroy-multirepo:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-destroy-multirepos.yml@v0.1.7
     with:
       TERRAFORM_VERSION: '1.6.4'
       WORKING_DIRECTORY: './terraform'
@@ -182,7 +182,7 @@ jobs:
       STORAGE_NAME_TFSTATE: 'terraformstatesstorage'
       CONTAINER_NAME_TFSTATE: 'tfstates'
       NAME_TFSTATE: 'my-project.tfstate'
-      VARIABLES_ORGANIZATION: 'meilleurtaux'
+      VARIABLES_ORGANIZATION: 'ExakisNelite'
       VARIABLES_REPOSITORY: 'project-variables'
       VARIABLES_BRANCH: 'main'
       VARIABLES_FILE: 'dev/terraform.tfvars'

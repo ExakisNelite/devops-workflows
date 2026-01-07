@@ -1,6 +1,6 @@
-# Contribute to Github Actions workflows for the CAP platform
+# Contribute to Github Actions workflows for the DevOps Tools team
   
-Welcome to the repository containing the Github Action workflows used by the CAP platform.
+Welcome to the repository containing the Github Action workflows used by the DevOps Tools team.
 We are delighted that you want to contribute to this repository.
 
 We accept all types of contributions; minor typo fixes to new topics.
@@ -11,7 +11,7 @@ The following guidelines will help you get started contributing to our project.
 
 ## Contents
 
-- [Contribute to Github Actions workflows for the CAP platform](#contribute-to-github-actions-workflows-for-the-cap-platform)
+- [Contribute to Github Actions workflows for the DevOps Tools team](#contribute-to-github-actions-workflows-for-the-devops-tools-team)
   - [Contents](#contents)
   - [Prerequisites](#prerequisites)
   - [How can I contribute?](#how-can-i-contribute)
@@ -19,7 +19,6 @@ The following guidelines will help you get started contributing to our project.
   - [Coding standards](#coding-standards)
   - [Tests](#tests)
   - [Versioning Strategy](#versioning-strategy)
-  - [Contact](#contact)
   - [Additional Resources](#additional-resources)
 
 ## Prerequisites
@@ -30,13 +29,13 @@ Before you start contributing, make sure you have the following skills:
 
 ## How can I contribute?
 
-We welcome contributions in a variety of forms, including bug reports, feature requests, code contributions, and documentation improvements. The objective is to improve the CAP platform so that it correctly meets the needs. Here's how you can get involved:
+We welcome contributions in a variety of forms, including bug reports, feature requests, code contributions, and documentation improvements. The objective is to improve the DevOps Tools team so that it correctly meets the needs. Here's how you can get involved:
 
 - **Code Contributions:** To contribute code, please follow the [Pull Request Process](#pull-request-process) below.
 
 - **Documentation:** If you want to improve the documentation, you can submit changes directly through GitHub.
 
-- **Report Bugs:** If you encounter any issues or bugs in the CAP platform, please open an issue on GitHub with a clear description of the issue, steps to reproduce it, and all relevant information.
+- **Report Bugs:** If you encounter any issues or bugs in the DevOps Tools team, please open an issue on GitHub with a clear description of the issue, steps to reproduce it, and all relevant information.
 
 - **Feature Requests:** Feel free to open issues on GitHub to suggest new features or improvements to existing features.
 
@@ -64,9 +63,9 @@ For example :
 git switch -c feature/add-functionality-workflow
 ```
 
-- **Code Development and Testing:** You write, modify and test the code on your own local branch while respecting the [CAP MTX Coding Standards](#coding-standards) to ensure that the changes work as expected.
+- **Code Development and Testing:** You write, modify and test the code on your own local branch while respecting the [Exakis Nelite DevOps Tools Coding Standards](#coding-standards) to ensure that the changes work as expected.
   
-- **Commit:** Commit your changes locally with git commit -m "commit message", with a clear and concise commit message to help the CAP team during review.
+- **Commit:** Commit your changes locally with git commit -m "commit message", with a clear and concise commit message to help the DevOps Tools team during review.
 
 ```bash
 git commit -m "commit message"
@@ -88,7 +87,7 @@ Now you can open a pull request:
 
 - **Create a Pull Request (PR)** to the `main` branch of our main repository.
 Be prepared to provide additional information or make adjustments based on feedback during the review process.
-Your Pull Request is accepted after code validation by the CAP team.
+Your Pull Request is accepted after code validation by the DevOps Tools team.
 
 ## Coding standards
 
@@ -135,15 +134,10 @@ We use a versioning system based on Semantic Versioning 2.0.0 (SemVer). Here's h
 
 Be sure to update the appropriate version numbers in your code and pull request.
 
-Please follow the official Github documentation for reporting Bugs and features [Versioning Strategy](https://meilleurtaux.atlassian.net/wiki/spaces/CCAP/pages/264732781/Strat+gie+de+gestion+des+versions)
-
-## Contact
-
-If you have any questions or need assistance, please do not hesitate to contact us. You can reach our CAP team at:
-[CAP - Core - GROUP - CAP](mailto:a8e823dd.MEILLEURTAUXCOM.onmicrosoft.com@fr.teams.ms)
+Please follow the official Github documentation for reporting Bugs and features Versioning Strategy
 
 ## Additional Resources
 
-For more information and resources related to our CAP project, please visit our [Landing Zone CAP Project Github Governance Wiki](https://meilleurtaux.atlassian.net/wiki/spaces/CCAP/pages/264470535/Governance+GitHub+-+Platform+V0.2) and our [Azure Technical Architecture Documentation](https://meilleurtaux.atlassian.net/wiki/spaces/CCAP/pages/233635848/Architecture+Technique+Azure).
+For more information and resources related to our DevOps tools, please visit our Github Governance Wiki and our Azure Technical Architecture Documentation.
 
-Thank you for your contribution and support to improve the CAP platform !
+Thank you for your contribution and support to improve the DevOps Exakis Nelite tools !

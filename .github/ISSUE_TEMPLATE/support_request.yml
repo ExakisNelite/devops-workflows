@@ -1,6 +1,6 @@
 name: Demande de Support WORKFLOWS
 description: Soumettez une demande de support pour tout problème ou question liés aux workflows partagés GitHub Actions.
-labels: ["cap-workflows-support"]
+labels: ["devops-workflows-support"]
 body:
   - type: markdown
     attributes:
@@ -30,7 +30,7 @@ body:
     id: version-workflows
     attributes:
       label: Version des workflows
-      description: "Veuillez fournir la version des workflows CAP concernés par votre demande."
+      description: "Veuillez fournir la version des workflows DevOps Tools concernés par votre demande."
       placeholder: "ex. v0.0.28"
     validations:
       required: true

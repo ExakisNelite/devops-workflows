@@ -1,24 +1,24 @@
-# cap-workflows
+# devops-workflows
 
 This repository contains the Github Actions workflow files which make up our catalog of GitHub templates for setting up CI/CD chains.
 
 - Current Version: 0.3.0
 - Version date: 16/09/2025
 
-[![Release the GitHub Actions Workflows](https://github.com/meilleurtaux/cap-workflows/actions/workflows/internal-release-workflows.yml/badge.svg?branch=main)](https://github.com/meilleurtaux/cap-workflows/actions/workflows/internal-release-workflows.yml)
+[![Release the GitHub Actions Workflows](https://github.com/ExakisNelite/devops-workflows/actions/workflows/internal-release-workflows.yml/badge.svg?branch=main)](https://github.com/ExakisNelite/devops-workflows/actions/workflows/internal-release-workflows.yml)
 
 [Change History](./.github/CHANGELOG.md)
 
 ## Use repository
 
-To use the workflows from this repository in your GitHub Actions workflows, you can reference them using the `uses` keyword with the format `Meilleurtaux/cap-workflows/.github/workflows/workflow-name.yml@tag`.
+To use the workflows from this repository in your GitHub Actions workflows, you can reference them using the `uses` keyword with the format `ExakisNelite/devops-workflows/.github/workflows/workflow-name.yml@tag`.
 
 To pass named inputs to a called workflow, use the `with` keyword in a job. Use the keyword `secrets` to pass named secrets. For inputs, the data type of the input value must match the type specified in the called workflow (boolean, number, or string).
 
 ```yaml
 jobs:
    call-workflow-passing-data:
-     uses: Meilleurtaux/cap-workflows/.github/workflows/reusable-workflow.yml@main
+     uses: ExakisNelite/devops-workflows/.github/workflows/reusable-workflow.yml@main
      with:
        config-path: .github/labeler.yml
      secrets:
@@ -57,8 +57,6 @@ If you encounter any issue with the code in this repository, please open a GitHu
 3. Steps to reproduce the issue
 4. Expected behavior vs. actual behavior
 5. Screenshots or logs (if applicable)
-
-For urgent issues, you can also reach out to [CAP - Core - GROUPE - CAP](mailto:a8e823dd.MEILLEURTAUXCOM.onmicrosoft.com@fr.teams.ms) describing the problem encountered.
 
 ## Collaborate on the repository
 

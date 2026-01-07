@@ -201,7 +201,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -209,7 +209,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
         with:
           ACTION: OpenOneIp
@@ -229,7 +229,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHub Organization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
@@ -354,7 +354,7 @@ jobs:
         working-directory: ${{ inputs.CHECKOV_CONFIG_DIRECTORY}}
 
       - name: Checkov - Security Check
-        uses: meilleurtaux/cap-action-terraform-checkov@latest
+        uses: ExakisNelite/devops-action-terraform-checkov@latest
         with:
           WORKING_DIRECTORY: ${{ inputs.WORKING_DIRECTORY}}
           TFPLAN_FILE: tfplan-${{ inputs.ENVIRONMENT_CHECK }}.json
@@ -363,7 +363,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
         with:
           ACTION: OpenOneIp
@@ -378,7 +378,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
           ACTION: CloseOneIp
@@ -398,7 +398,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
       - name: Super Linter        
-        uses: meilleurtaux/cap-action-terraform-superlinter@latest
+        uses: ExakisNelite/devops-action-terraform-superlinter@latest
         with:
           DEFAULT_BRANCH: ${{ inputs.DEFAULT_BRANCH }}
           DEFAULT_WORKSPACE: ${{ inputs.WORKING_DIRECTORY }}
@@ -426,7 +426,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
       - name: Terraform fmt
-        uses: meilleurtaux/cap-action-terraform-fmt@latest
+        uses: ExakisNelite/devops-action-terraform-fmt@latest
         with:
           TERRAFORM_VERSION: ${{ inputs.TERRAFORM_VERSION }}
           working-dir: ${{ inputs.WORKING_DIRECTORY}}
@@ -480,7 +480,7 @@ jobs:
           subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -488,7 +488,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
         with:
           ACTION: OpenOneIp
@@ -507,14 +507,14 @@ jobs:
         with:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
-      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
         env:
             UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-        # TODO: YWI, début partie à externaliser dans une action composite cap-action-terraform-workflow
+        # TODO: YWI, début partie à externaliser dans une action composite devops-action-terraform-workflow
         # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
@@ -639,7 +639,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
         with:
           ACTION: OpenOneIp
@@ -654,7 +654,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
             ACTION: CloseOneIp
@@ -696,7 +696,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         with:
           ACTION: OpenOneIp
           StorageAccount: true
@@ -704,7 +704,7 @@ jobs:
 
       - name: Open Resources Firewall
         id: open-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: ${{ inputs.RG_NAME_RESOURCES_TO_OPEN != '' }}
         with:
           ACTION: OpenOneIp
@@ -724,7 +724,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
+      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
@@ -772,7 +772,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls-resources
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always() && inputs.RG_NAME_RESOURCES_TO_OPEN != ''
         with:
           ACTION: OpenOneIp
@@ -787,7 +787,7 @@ jobs:
 
       - name: Close Resources Firewall
         id: close-firewalls
-        uses: meilleurtaux/cap-action-firewall@latest
+        uses: ExakisNelite/devops-action-firewall@latest
         if: always()
         with:
             ACTION: CloseOneIp

@@ -111,7 +111,7 @@ This workflow is designed for scenarios where Terraform variable files are store
 ```yaml
 jobs:
   multirepo-deploy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@v0.1.7
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@v0.1.7
     with:
       TERRAFORM_VERSION: '1.6.4'
       WORKING_DIRECTORY: './terraform'
@@ -123,7 +123,7 @@ jobs:
       NAME_TFSTATE_BUILD_CHECK: 'my-project-int.tfstate'
       NAME_TFSTATE_DEPLOY: 'my-project-rec.tfstate'
       DEFAULT_BRANCH: 'main'
-      VARIABLES_ORGANIZATION: 'meilleurtaux'
+      VARIABLES_ORGANIZATION: 'ExakisNelite'
       VARIABLES_REPOSITORY: 'project-variables'
       VARIABLES_BRANCH: 'main'
       VARIABLES_FILE: 'recette/terraform.tfvars'
@@ -165,7 +165,7 @@ permissions:
 
 jobs:
   call-shared-workflow:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
     with:
       TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH }}
       DEFAULT_BRANCH: 'main'
@@ -196,7 +196,7 @@ jobs:
 ```yaml
 jobs:
   call-shared-workflow:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
     with:
       # Other parameters...
       VARIABLES_FILE: './environments/dev.tfvars'
@@ -212,7 +212,7 @@ jobs:
 ```yaml
 jobs:
   call-shared-workflow:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-tf-build-check-deploy-multirepos.yml@latest
     with:
       # Other parameters...
       RG_NAME_RESOURCES_TO_OPEN: 'my-azure-resources-rg'

@@ -39,7 +39,7 @@
 
 ## Version 0.1.6
 
-- Add new shared tf workflow specific for CAP platform deployment : `shared-tf-deploy-platform`
+- Add new shared tf workflow specific for DevOps Tools platform deployment : `shared-tf-deploy-platform`
 - Enhance Terraform workflow with variable file handling with secrets and formatting, including improved readability and consistency in generated Terraform files.
 - Add inputs for managing Azure resource group firewalls in Terraform workflows `shared-tf-build-check-deploy` and `shared-tf-deploy`
 - Improved variable handling documentation to clarify usage of VARIABLES_FILE and VARIABLES secret.
@@ -80,11 +80,11 @@
 
 ## Version 0.0.21
 
-- Upgrade `cap-action-firewall` to `latest`
-- Upgrade `cap-action-terraform-checkov` to `latest`
-- Upgrade `cap-action-terraform-docs` to `latest`
-- Upgrade `cap-action-terraform-fmt` to `latest`
-- Upgrade `cap-action-terraform-superlinter` to `latest`
+- Upgrade `devops-action-firewall` to `latest`
+- Upgrade `devops-action-terraform-checkov` to `latest`
+- Upgrade `devops-action-terraform-docs` to `latest`
+- Upgrade `devops-action-terraform-fmt` to `latest`
+- Upgrade `devops-action-terraform-superlinter` to `latest`
 
 ## Version 0.0.20
 
@@ -94,18 +94,18 @@
 
 ## Version 0.0.19
 
-- Upgrade `cap-action-firewall` to `0.0.8`
+- Upgrade `devops-action-firewall` to `0.0.8`
 
 ## Version 0.0.18
 
-- Upgrade `cap-action-firewall` to `0.0.7`
+- Upgrade `devops-action-firewall` to `0.0.7`
 
 ## Version 0.0.17
 
 - Add management of variables with Secrets instead of Terraform TFVARS File to terraform workflows
 - Add TESTS_DIRECTORY parameter to workflow `shared-tf-build-check.yml`
-- Upgrade `cap-action-terraform-fmt` to `0.0.3`
-- Upgrade `cap-action-terraform-superlinter` to `0.0.7`
+- Upgrade `devops-action-terraform-fmt` to `0.0.3`
+- Upgrade `devops-action-terraform-superlinter` to `0.0.7`
 
 ## Version 0.0.16
 
@@ -113,7 +113,7 @@
 
 ## Version 0.0.15
 
-- Upgrade `cap-action-firewall` to `0.0.6`
+- Upgrade `devops-action-firewall` to `0.0.6`
 
 ## Version 0.0.14
 

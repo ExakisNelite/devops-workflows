@@ -12,5 +12,5 @@ receive these patches depends on the CVSS v3.0 classification:
 
 ## Report a vulnerability
 
-Please report (suspected) security vulnerabilities to **[security-cap@meilleurtaux.com](mailto:security-cap@meilleurtaux.com)**.
+Please report (suspected) security vulnerabilities to **[security@exakis-nelite.com](mailto:security@exakis-nelite.com)**.
 You will receive a response from us within 48 hours. If the problem is confirmed, we will issue a patch as soon as possible depending on the complexity, but historically within a few days.

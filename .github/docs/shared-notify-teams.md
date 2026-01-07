@@ -42,7 +42,7 @@ To use this reusable workflow in your own GitHub Actions workflow, you can refer
 ```yaml
 jobs:
   notify-teams:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-notify-teams.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-notify-teams.yml@latest
     with:
       status: 'success'
       message: 'Deployment completed successfully!'
@@ -75,7 +75,7 @@ jobs:
   notify-success:
     needs: deploy
     if: success()
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-notify-teams.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-notify-teams.yml@latest
     with:
       status: 'success'
       message: 'Application deployed successfully to production!'
@@ -86,7 +86,7 @@ jobs:
   notify-failure:
     needs: deploy
     if: failure()
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-notify-teams.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-notify-teams.yml@latest
     with:
       status: 'failure'
       message: 'Application deployment failed. Please check the logs.'
@@ -110,7 +110,7 @@ jobs:
   notify:
     needs: test
     if: always()
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-notify-teams.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-notify-teams.yml@latest
     with:
       status: ${{ needs.test.result == 'success' && 'success' || 'failure' }}
       message: 'CI pipeline completed'

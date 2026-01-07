@@ -60,7 +60,7 @@ To use this reusable workflow in your own GitHub Actions workflow, you can refer
 ```yaml
 jobs:
   deploy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-php-deploy-app.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-php-deploy-app.yml@latest
     with:
       vm_host: '192.168.1.100'
       vm_path: '/var/www/html'
@@ -99,7 +99,7 @@ jobs:
 
   deploy:
     needs: build
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-php-deploy-app.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-php-deploy-app.yml@latest
     with:
       vm_host: '10.0.1.100'
       vm_path: '/var/www/html'
@@ -116,7 +116,7 @@ name: Deploy to Production
 
 jobs:
   deploy:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-php-deploy-app.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-php-deploy-app.yml@latest
     with:
       vm_host: '10.0.1.100'
       vm_path: '/var/www/html'
@@ -133,7 +133,7 @@ name: Deploy to Staging
 
 jobs:
   deploy-staging:
-    uses: meilleurtaux/cap-workflows/.github/workflows/shared-php-deploy-app.yml@latest
+    uses: ExakisNelite/devops-workflows/.github/workflows/shared-php-deploy-app.yml@latest
     with:
       vm_host: '10.0.1.200'
       vm_path: '/var/www/staging'
