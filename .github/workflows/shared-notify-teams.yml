@@ -38,17 +38,23 @@ jobs:
         id: color
         run: |
           if [ "${{ inputs.status }}" == "success" ]; then
-            echo "color=00FF00" >> $GITHUB_OUTPUT
-            echo "icon=✅" >> $GITHUB_OUTPUT
-            echo "title=Deployment Successful" >> $GITHUB_OUTPUT
+            {
+              echo "color=00FF00"
+              echo "icon=✅"
+              echo "title=Deployment Successful"
+            } >> "$GITHUB_OUTPUT"
           elif [ "${{ inputs.status }}" == "failure" ]; then
-            echo "color=FF0000" >> $GITHUB_OUTPUT
-            echo "icon=❌" >> $GITHUB_OUTPUT
-            echo "title=Deployment Failed" >> $GITHUB_OUTPUT
+            {
+              echo "color=FF0000"
+              echo "icon=❌"
+              echo "title=Deployment Failed"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "color=0078D4" >> $GITHUB_OUTPUT
-            echo "icon=🚀" >> $GITHUB_OUTPUT
-            echo "title=Deployment Started" >> $GITHUB_OUTPUT
+            {
+              echo "color=0078D4"
+              echo "icon=🚀"
+              echo "title=Deployment Started"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build Teams message
@@ -155,9 +161,6 @@ jobs:
       - name: Verify notification sent
         if: always()
         run: |
-          if [ $? -eq 0 ]; then
-            echo "✅ Teams notification sent successfully"
-          else
-            echo "⚠️ Failed to send Teams notification (non-blocking)"
-            exit 0
-          fi
+          # Note: This step runs after curl, but $? reflects the success of this step's script
+          # The actual notification status is checked by the workflow's job status
+          echo "✅ Notification step completed"
