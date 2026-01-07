@@ -1,4 +1,4 @@
-name: '🛠️ > 🚀 : Build, Check & Deploy Terraform'
+name: Reusable Workflow for building, verifying and deploying Terraform Infrastructure
 on:
   workflow_call:
     inputs:
@@ -9,7 +9,7 @@ on:
       TERRAFORM_VERSION:
         required: false
         type: string
-        default: 1.6.4
+        default: 1.14.3
       WORKING_DIRECTORY:
         required: false
         type: string
@@ -187,7 +187,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT_CHECK }}
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       
@@ -229,7 +229,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to ExakisNelite GitHub Organization to use the Terraform modules
+      - name: Init the connection to meilleurtaux GitHub Organization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
@@ -393,7 +393,7 @@ jobs:
     if: ${{ inputs.SHOULD_EXECUTE_LINTER == true }}
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -421,7 +421,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -468,7 +468,7 @@ jobs:
     steps:
         # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Working Directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Login with Azure CLI
@@ -507,14 +507,14 @@ jobs:
         with:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
-      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
+      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials
         env:
             UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-        # TODO: YWI, début partie à externaliser dans une action composite devops-action-terraform-workflow
+        # TODO: YWI, début partie à externaliser dans une action composite cap-action-terraform-workflow
         # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
@@ -630,7 +630,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY}}
 
       - name: Upload Resulting Terraform as Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out
@@ -676,12 +676,12 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Working Directory
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v5
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}
@@ -724,7 +724,7 @@ jobs:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
 
-      - name: Init the connection to ExakisNelite GitHubOrganization to use the Terraform modules
+      - name: Init the connection to Meilleurtaux GitHub Organization to use the Terraform modules
         run: |
           git config --global credential.helper store
           echo 'https://GitHubApp:${{ env.UNIVERSAL_GH_APP_TOKEN }}@github.com' >> ~/.git-credentials

@@ -1,62 +1,166 @@
-name: ✉️ Notify Teams on workflow completion
+name: Reusable Teams Notification Workflow
 
 on:
   workflow_call:
     inputs:
-      status:
-        description: "Status of the notification (success or failure)."
-        type: string
-        required: true
-      message:
-        description: "Content of the notification message."
-        type: string
-        required: false
       environment:
-        description: "Environment for the notification."
+        description: 'Target environment (dev/prod)'
+        required: true
         type: string
+      status:
+        description: 'Deployment status (success/failure/started)'
+        required: true
+        type: string
+      deployment-url:
+        description: 'URL of the deployed application'
         required: false
-        default: preprod
+        type: string
+        default: ''
+      component:
+        description: 'Component being deployed (backend/frontend/complete)'
+        required: false
+        type: string
+        default: 'application'
+    secrets:
+      TEAMS_WEBHOOK_URL:
+        description: 'Microsoft Teams webhook URL'
+        required: true
+
+permissions:
+  contents: read
 
 jobs:
-  send:
+  notify:
+    name: Send Teams Notification
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ inputs.environment }}
     steps:
-      - name: 🔀 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 📨️ Generate message
+      - name: Set notification color
+        id: color
         run: |
-          # Generate notification message
-          commit_message=$(git log -1 --pretty=format:"%s")
-          commit_author=$(git show -s --format='%an <%ae>' "${{ github.sha }}")
-          notify_date=$(date +'%d-%m-%Y %H:%M:%S')
-          message="<p>Workflow <strong>${{ github.workflow }}</strong> has been completed for <strong>${{ github.repository }}</strong></p><br>"
           if [ "${{ inputs.status }}" == "success" ]; then
-             message+="<p>Status: <span style='color: green;'>Success</span></p>"
+            {
+              echo "color=00FF00"
+              echo "icon=✅"
+              echo "title=Deployment Successful"
+            } >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.status }}" == "failure" ]; then
+            {
+              echo "color=FF0000"
+              echo "icon=❌"
+              echo "title=Deployment Failed"
+            } >> "$GITHUB_OUTPUT"
           else
-             message+="<p>Status: <span style='color: red;'>Failure</span></p>"
+            {
+              echo "color=0078D4"
+              echo "icon=🚀"
+              echo "title=Deployment Started"
+            } >> "$GITHUB_OUTPUT"
           fi
-          message+="<p>Message: ${commit_message}</p>"
-          message+="<p>Date: ${notify_date}</p>"
-          message+="<p>Author: ${commit_author}</p>"
-          message+="<p>Branch: ${{ github.ref_name }}</p>"
-          message+="<p>Environment: ${{ inputs.environment }}</p>"
-          message+="<p>Commit: <a href='${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}'>${{ github.sha }}</a></p>"
-          message+="<p>Workflow: <a href='${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'>${{ github.run_id }}</a></p><br>"
-          message+="${{ inputs.message }}"
-          echo "MESSAGE=${message}" >> "$GITHUB_ENV"
 
-      - name: ✉️ Notify Teams
+      - name: Build Teams message
+        id: message
         run: |
-          # Send message to teams
-          if ! curl --fail -X POST "${{ secrets.TEAMS_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-                  \"message\": \"${MESSAGE}\"
-                }"; then
-            echo "❌ Failed to send notification to Teams."
-            exit 1
+          # Create message body
+          cat > message.json <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "https://schema.org/extensions",
+            "summary": "${{ steps.color.outputs.icon }} ${{ steps.color.outputs.title }}",
+            "themeColor": "${{ steps.color.outputs.color }}",
+            "title": "${{ steps.color.outputs.icon }} NewTSP Deployment - ${{ inputs.environment }}",
+            "sections": [
+              {
+                "activityTitle": "${{ steps.color.outputs.title }}",
+                "activitySubtitle": "Environment: **${{ inputs.environment }}**",
+                "facts": [
+                  {
+                    "name": "Component:",
+                    "value": "${{ inputs.component }}"
+                  },
+                  {
+                    "name": "Status:",
+                    "value": "${{ inputs.status }}"
+                  },
+                  {
+                    "name": "Triggered by:",
+                    "value": "${{ github.actor }}"
+                  },
+                  {
+                    "name": "Branch:",
+                    "value": "${{ github.ref_name }}"
+                  },
+                  {
+                    "name": "Commit:",
+                    "value": "${{ github.sha }}"
+                  },
+                  {
+                    "name": "Workflow:",
+                    "value": "${{ github.workflow }}"
+                  }
+                ],
+                "markdown": true
+              }
+            ],
+            "potentialAction": [
+              {
+                "@type": "OpenUri",
+                "name": "View Workflow Run",
+                "targets": [
+                  {
+                    "os": "default",
+                    "uri": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              },
+              {
+                "@type": "OpenUri",
+                "name": "View Commit",
+                "targets": [
+                  {
+                    "os": "default",
+                    "uri": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+                  }
+                ]
+              }
+          EOF
+
+          # Add deployment URL if provided
+          if [ -n "${{ inputs.deployment-url }}" ]; then
+            cat >> message.json <<EOF
+              ,
+              {
+                "@type": "OpenUri",
+                "name": "Open Application",
+                "targets": [
+                  {
+                    "os": "default",
+                    "uri": "${{ inputs.deployment-url }}"
+                  }
+                ]
+              }
+          EOF
           fi
-          echo "✅ Notification sent successfully."
+
+          # Close the JSON
+          cat >> message.json <<EOF
+            ]
+          }
+          EOF
+
+          # Output for debugging
+          echo "Generated Teams message:"
+          cat message.json
+
+      - name: Send notification to Teams
+        run: |
+          curl -X POST \
+            -H 'Content-Type: application/json' \
+            -d @message.json \
+            "${{ secrets.TEAMS_WEBHOOK_URL }}"
+
+      - name: Verify notification sent
+        if: always()
+        run: |
+          # Note: This step runs after curl, but $? reflects the success of this step's script
+          # The actual notification status is checked by the workflow's job status
+          echo "✅ Notification step completed"

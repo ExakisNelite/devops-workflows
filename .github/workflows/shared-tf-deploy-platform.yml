@@ -5,7 +5,7 @@ on:
       TERRAFORM_VERSION:
         required: false
         type: string
-        default: 1.6.4
+        default: 1.14.3
       WORKING_DIRECTORY:
         required: false
         type: string
