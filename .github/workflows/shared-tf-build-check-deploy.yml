@@ -187,7 +187,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT_CHECK }}
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       
@@ -393,7 +393,7 @@ jobs:
     if: ${{ inputs.SHOULD_EXECUTE_LINTER == true }}
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -421,7 +421,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -468,7 +468,7 @@ jobs:
     steps:
         # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Login with Azure CLI
@@ -630,7 +630,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY}}
 
       - name: Upload Resulting Terraform as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out
@@ -676,12 +676,12 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}

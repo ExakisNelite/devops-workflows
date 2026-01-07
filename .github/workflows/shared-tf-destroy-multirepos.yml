@@ -119,7 +119,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT }}
     steps:      
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Generate token for the Organization GitHub App
@@ -140,7 +140,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Checkout Terraform Variables Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: ${{ inputs.VARIABLES_REPOSITORY != '' }}
         with:
           repository: ${{ inputs.VARIABLES_ORGANIZATION }}/${{ inputs.VARIABLES_REPOSITORY }}
@@ -284,7 +284,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY}}
 
       - name: Upload Resulting Terraform as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT }}.out
@@ -316,7 +316,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Generate token for the Organization GitHub App
@@ -337,7 +337,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Checkout Terraform Variables Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: ${{ inputs.VARIABLES_REPOSITORY != '' }}
         with:
           repository: ${{ inputs.VARIABLES_ORGANIZATION }}/${{ inputs.VARIABLES_REPOSITORY }}
@@ -345,7 +345,7 @@ jobs:
           token: ${{ steps.generate-token.outputs.token }}
           path: ${{ inputs.VARIABLES_REPOSITORY }}
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}

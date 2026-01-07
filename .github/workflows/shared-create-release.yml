@@ -62,7 +62,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT }}
     steps:
       - name: Checkout Caller Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ inputs.TARGET_REPOSITORY }}
           ref: ${{ inputs.TARGET_BRANCH }}
@@ -78,7 +78,7 @@ jobs:
           dry_run: ${{ github.event_name == 'pull_request' }}
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         if: steps.create_tag.outputs.new_version
         with:
           tag_name: ${{ steps.create_tag.outputs.new_tag }}
