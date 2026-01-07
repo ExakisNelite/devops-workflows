@@ -68,6 +68,7 @@ jobs:
           ref: ${{ inputs.TARGET_BRANCH }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
       - name: Bump version and push tag
         id: create_tag
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
