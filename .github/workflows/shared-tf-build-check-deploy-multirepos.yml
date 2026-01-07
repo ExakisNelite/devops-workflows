@@ -159,7 +159,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT_CHECK }}
     steps:
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Generate token for the Organization GitHub App
@@ -180,7 +180,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Checkout Terraform Variables Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: ${{ inputs.VARIABLES_REPOSITORY != '' }}
         with:
           repository: ${{ inputs.VARIABLES_ORGANIZATION }}/${{ inputs.VARIABLES_REPOSITORY }}
@@ -351,7 +351,7 @@ jobs:
     if: ${{ inputs.SHOULD_EXECUTE_LINTER == true }}
     steps:
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -379,7 +379,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
 
@@ -425,7 +425,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT_DEPLOYMENT }}
     steps:        
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
       - name: Generate token for the Organization GitHub App
@@ -446,7 +446,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Checkout Terraform Variables Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: ${{ inputs.VARIABLES_REPOSITORY != '' }}
         with:
           repository: ${{ inputs.VARIABLES_ORGANIZATION }}/${{ inputs.VARIABLES_REPOSITORY }}
@@ -617,7 +617,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT_DEPLOYMENT }}
     steps:      
       - name: Checkout Terraform Working Directory
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
       - name: Generate token for the Organization GitHub App
@@ -638,7 +638,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Checkout Terraform Variables Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         if: ${{ inputs.VARIABLES_REPOSITORY != '' }}
         with:
           repository: ${{ inputs.VARIABLES_ORGANIZATION }}/${{ inputs.VARIABLES_REPOSITORY }}
