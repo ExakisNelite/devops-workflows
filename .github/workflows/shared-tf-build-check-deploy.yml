@@ -630,7 +630,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIRECTORY}}
 
       - name: Upload Resulting Terraform as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}/tfplan-${{ inputs.ENVIRONMENT_DEPLOYMENT }}.out
