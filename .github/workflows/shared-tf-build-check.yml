@@ -180,7 +180,7 @@ jobs:
           UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3.1.2
+        uses: hashicorp/setup-terraform@v4.0.0
         with:
           terraform_version: ${{ inputs.TERRAFORM_VERSION }}
           terraform_wrapper: false
