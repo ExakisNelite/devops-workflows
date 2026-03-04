@@ -646,7 +646,7 @@ jobs:
           token: ${{ steps.generate-token.outputs.token }}
           path: ${{ inputs.VARIABLES_REPOSITORY }}
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.generate-artifact-plan-name.outputs.ARTIFACT_PLAN_NAME }}
           path: ${{ inputs.WORKING_DIRECTORY }}
