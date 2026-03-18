@@ -79,7 +79,7 @@ jobs:
           dry_run: ${{ github.event_name == 'pull_request' }}
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe
         if: steps.create_tag.outputs.new_version
         with:
           tag_name: ${{ steps.create_tag.outputs.new_tag }}
