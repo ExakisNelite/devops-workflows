@@ -128,7 +128,7 @@ jobs:
 
       - name: Login with Azure CLI
         id: azure-login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -144,7 +144,7 @@ jobs:
 
       - name: Login to Management with Azure CLI
         id: azure-login-management
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -161,7 +161,7 @@ jobs:
 
       - name: Login to Identity with Azure CLI
         id: azure-login-identity
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -368,7 +368,7 @@ jobs:
 
       - name: Login with Azure CLI
         id: azure-login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -384,7 +384,7 @@ jobs:
 
       - name: Login to Management with Azure CLI
         id: azure-login-management
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -401,7 +401,7 @@ jobs:
 
       - name: Login to Identity with Azure CLI
         id: azure-login-identity
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}

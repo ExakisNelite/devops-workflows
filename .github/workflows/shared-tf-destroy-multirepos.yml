@@ -149,7 +149,7 @@ jobs:
           path: ${{ inputs.VARIABLES_REPOSITORY }}
       - name: Login with Azure CLI
         id: azure-login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
@@ -351,7 +351,7 @@ jobs:
           path: ${{ inputs.WORKING_DIRECTORY }}
       - name: Login with Azure CLI
         id: azure-login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.CLIENT_ID }}
           tenant-id: ${{ secrets.TENANT_ID }}
