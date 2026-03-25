@@ -164,7 +164,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }}
       - name: Generate token for the Organization GitHub App
         id: generate-token
-        uses: getsentry/action-github-app-token@v3.0.0
+        uses: getsentry/action-github-app-token@v4.0.0
         with:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
@@ -430,7 +430,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
       - name: Generate token for the Organization GitHub App
         id: generate-token
-        uses: getsentry/action-github-app-token@v3.0.0
+        uses: getsentry/action-github-app-token@v4.0.0
         with:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
@@ -622,7 +622,7 @@ jobs:
           ref: ${{ inputs.EVENT_NAME != 'pull_request' && inputs.TARGET_BRANCH || ''  }} 
       - name: Generate token for the Organization GitHub App
         id: generate-token
-        uses: getsentry/action-github-app-token@v3.0.0
+        uses: getsentry/action-github-app-token@v4.0.0
         with:
           app_id: ${{ secrets.UNIVERSAL_GH_APP_ID_CODE }}
           private_key: ${{ secrets.UNIVERSAL_GH_APP_PRIVATE_KEY_CODE }}
