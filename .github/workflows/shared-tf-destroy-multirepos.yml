@@ -171,7 +171,7 @@ jobs:
       # TODO: YWI, début partie à externaliser dans une action composite devops-action-terraform-workflow
       # PARAMETRE : collection d'actions (init, fmt, validate, plan, show, apply, destroy)
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4.0.0
+        uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: ${{ inputs.TERRAFORM_VERSION }}
           terraform_wrapper: false
@@ -370,7 +370,7 @@ jobs:
         env:
           UNIVERSAL_GH_APP_TOKEN: ${{ steps.generate-token.outputs.token }}
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4.0.0
+        uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: ${{ inputs.TERRAFORM_VERSION }}
           terraform_wrapper: false
