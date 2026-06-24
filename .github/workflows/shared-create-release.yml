@@ -62,7 +62,7 @@ jobs:
     environment: ${{ inputs.ENVIRONMENT }}
     steps:
       - name: Checkout Caller Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ inputs.TARGET_REPOSITORY }}
           ref: ${{ inputs.TARGET_BRANCH }}
