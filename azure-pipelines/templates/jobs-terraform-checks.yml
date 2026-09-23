@@ -1,0 +1,192 @@
+# ============================================================
+# Template: tf-build-check.yml
+# ============================================================
+parameters:
+  # ── Identity ────────────────────────────────────────────────
+  - name: jobName
+    type: string
+  - name: displayName
+    type: string
+  - name: azureServiceConnection
+    type: string
+  - name: subscriptionId
+    type: string
+  - name: tenantId
+    type: string
+  # ── Directories ─────────────────────────────────────────────
+  - name: workingDirectory
+    type: string
+    default: '.'
+  - name: testsDirectory
+    type: string
+    default: './tests'
+  - name: checkovConfigDirectory
+    type: string
+    default: './configuration'
+  # ── Terraform backend ───────────────────────────────────────
+  - name: rgNameTfstate
+    type: string
+  - name: storageNameTfstate
+    type: string
+  - name: containerNameTfstate
+    type: string
+  - name: nameTfstate
+    type: string
+  - name: variablesFile
+    type: string
+    default: ''
+  - name: terraformVersion
+    type: string
+    default: '1.14.7'
+  # ── Toggles ─────────────────────────────────────────────────
+  - name: defaultBranch
+    type: string
+    default: 'main'
+  - name: shouldExecuteLinter
+    type: boolean
+    default: false
+  - name: shouldGenerateDocumentation
+    type: boolean
+    default: false
+  - name: linterValidateAllCodebase
+    type: boolean
+    default: false
+  - name: linterValidateCheckov
+    type: boolean
+    default: false
+  - name: linterValidateMarkdown
+    type: boolean
+    default: false
+  - name: linterValidateNaturalLanguage
+    type: boolean
+    default: false
+  - name: linterValidateJson
+    type: boolean
+    default: false
+  - name: terraformDocsConfigFile
+    type: string
+    default: '.terraform-docs.yaml'
+  - name: environment
+    type: string
+    default: 'integration-modules'
+  - name: linterValidateYaml
+    type: boolean
+    default: false
+
+jobs:
+  # ╔═════════════════════════════════════════╗
+  # ║         CHECKOV + TERRAFORM PLAN        ║
+  # ╚═════════════════════════════════════════╝
+  - template: job-terraform-validate.yml
+    parameters:
+      jobName: checkov_${{ parameters.jobName }}
+      jobDisplayName: 'Checkov & Terraform Plan – ${{ parameters.displayName }}'
+      artifactName: 'checkov-tfplan-${{ parameters.jobName }}'
+      terraformVersion: ${{ parameters.terraformVersion }}
+      serviceConnection: ${{ parameters.azureServiceConnection }}
+      rgNameTfstate: ${{ parameters.rgNameTfstate }}
+      storageNameTfstate: ${{ parameters.storageNameTfstate }}
+      containerNameTfstate: ${{ parameters.containerNameTfstate }}
+      nameTfstate: ${{ parameters.nameTfstate }}
+      workingDirectory: ${{ parameters.testsDirectory }}
+      checkovConfigDirectory: ${{ parameters.checkovConfigDirectory }}
+      variablesFile: ${{ parameters.variablesFile }}
+      environment: ${{ parameters.environment }}
+
+  # ╔═════════════════════════════════════════╗
+  # ║              SUPER-LINTER               ║
+  # ╚═════════════════════════════════════════╝
+  - job: super_linter_${{ parameters.jobName }}
+    displayName: 'Super-Linter – ${{ parameters.displayName }}'
+    pool:
+      vmImage: ubuntu-latest
+    condition: eq('${{ parameters.shouldExecuteLinter }}', 'true')
+    steps:
+
+      - checkout: self
+        fetchDepth: 0
+        displayName: 'Checkout repository'
+
+      - bash: |
+          # Azure DevOps renders boolean parameters as 'True'/'False' (Python casing).
+          # Super-Linter requires strictly lowercase 'true'/'false'.
+          VALIDATE_ALL_CODEBASE=$(echo '${{ parameters.linterValidateAllCodebase }}' | tr '[:upper:]' '[:lower:]')
+          VALIDATE_CHECKOV=$(echo '${{ parameters.linterValidateCheckov }}' | tr '[:upper:]' '[:lower:]')
+          VALIDATE_MARKDOWN=$(echo '${{ parameters.linterValidateMarkdown }}' | tr '[:upper:]' '[:lower:]')
+          VALIDATE_NATURAL_LANGUAGE=$(echo '${{ parameters.linterValidateNaturalLanguage }}' | tr '[:upper:]' '[:lower:]')
+          VALIDATE_JSON=$(echo '${{ parameters.linterValidateJson }}' | tr '[:upper:]' '[:lower:]')
+          VALIDATE_YAML=$(echo '${{ parameters.linterValidateYaml }}' | tr '[:upper:]' '[:lower:]')
+
+          docker run --rm \
+            -e DEFAULT_BRANCH='${{ parameters.defaultBranch }}' \
+            -e FILTER_REGEX_EXCLUDE='.*(/.devcontainer|/.github|/tf_test).*' \
+            -e VALIDATE_ALL_CODEBASE="${VALIDATE_ALL_CODEBASE}" \
+            -e VALIDATE_CHECKOV="${VALIDATE_CHECKOV}" \
+            -e VALIDATE_MARKDOWN="${VALIDATE_MARKDOWN}" \
+            -e VALIDATE_MARKDOWN_PRETTIER="${VALIDATE_MARKDOWN}" \
+            -e VALIDATE_NATURAL_LANGUAGE="${VALIDATE_NATURAL_LANGUAGE}" \
+            -e VALIDATE_YAML="${VALIDATE_YAML}" \
+            -e VALIDATE_YAML_PRETTIER="${VALIDATE_YAML}" \
+            -e VALIDATE_JSON="${VALIDATE_JSON}" \
+            -e VALIDATE_BIOME_FORMAT=false \
+            -e VALIDATE_BIOME_LINT=false \
+            -e VALIDATE_JSCPD=false \
+            -e VALIDATE_TRIVY=false \
+            -e VALIDATE_POWERSHELL=false \
+            -e VALIDATE_SPELL_CODESPELL=false \
+            -e RUN_LOCAL=true \
+            -v "$(Build.SourcesDirectory):/tmp/lint" \
+            ghcr.io/super-linter/super-linter:latest
+        displayName: 'Super-Linter'
+
+  # ╔═════════════════════════════════════════╗
+  # ║            TERRAFORM FMT                ║
+  # ╚═════════════════════════════════════════╝
+  - job: terraform_fmt_${{ parameters.jobName }}
+    displayName: 'Terraform fmt – ${{ parameters.displayName }}'
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+
+      - checkout: self
+        displayName: 'Checkout repository'
+
+      - bash: |
+          TERRAFORM_VERSION='${{ parameters.terraformVersion }}'
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
+          unzip -q terraform.zip
+          sudo mv terraform /usr/local/bin/terraform
+        displayName: 'Install Terraform ${{ parameters.terraformVersion }}'
+
+      - bash: |
+          terraform fmt -check -recursive '${{ parameters.workingDirectory }}'
+        displayName: 'Terraform fmt check'
+
+  # ╔═════════════════════════════════════════╗
+  # ║           TERRAFORM-DOCS                ║
+  # ╚═════════════════════════════════════════╝
+  - job: terraform_docs_${{ parameters.jobName }}
+    displayName: 'Terraform Docs – ${{ parameters.displayName }}'
+    pool:
+      vmImage: ubuntu-latest
+    condition: eq('${{ parameters.shouldGenerateDocumentation }}', 'true')
+    steps:
+
+      - checkout: self
+        fetchDepth: 0
+        displayName: 'Checkout repository'
+
+      - bash: |
+          # Install terraform-docs
+          TDOCS_VERSION='0.18.0'
+          curl -fsSL "https://github.com/terraform-docs/terraform-docs/releases/download/v${TDOCS_VERSION}/terraform-docs-v${TDOCS_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz terraform-docs
+          sudo mv terraform-docs /usr/local/bin/terraform-docs
+          terraform-docs version
+        displayName: 'Install terraform-docs'
+
+      - bash: |
+          terraform-docs \
+            --config '${{ parameters.terraformDocsConfigFile }}' \
+            '${{ parameters.workingDirectory }}'
+        displayName: 'Run terraform-docs'

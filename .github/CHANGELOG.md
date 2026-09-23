@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.4.0
+
+- Add Azure DevOps YAML pipeline templates in `azure-pipelines/templates`:
+  - Stages templates: `deployment-stage-terraform-apply`, `deployment-stage-terraform-destroy`
+  - Jobs templates: `jobs-terraform-checks`, `job-terraform-validate`, `job-terraform-validate-iac-modules`, `job-terraform-plan`, `job-create-release`
+  - Deployment jobs templates: `deployment-job-terraform-apply`, `deployment-job-terraform-destroy`
+  - Steps templates: `steps-azure-manage-firewall-open`, `steps-azure-manage-firewall-close`
+- Add Azure DevOps templates documentation in `azure-pipelines/docs` and reorganize the README to cover both GitHub Actions workflows and Azure DevOps pipeline templates.
+- Add CI controls for Azure DevOps pipeline templates in `internal-ci-cd.yml`:
+  - YAML linting of `azure-pipelines/templates` with a dedicated yamllint configuration (`.github/configuration/.yamllint-azure-pipelines`)
+  - Structural validation script (`.github/scripts/validate_azure_pipelines_templates.py`) checking root structure, parameter definitions, cross-template references (file existence, passed/required parameters) and documentation synchronization.
+
 ## Version 0.3.0
 
 - Improve `shared-create-release` by adding capability to generate release note from a template including references to Jira work items.
