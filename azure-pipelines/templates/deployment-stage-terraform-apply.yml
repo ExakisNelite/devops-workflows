@@ -1,0 +1,132 @@
+parameters:
+  # Stage naming & orchestration
+  - name: planStageName
+    type: string
+    default: GeneratePlan
+    displayName: Plan stage name
+  - name: applyStageName
+    type: string
+    default: Apply
+    displayName: Apply stage name
+  - name: dependsOnStages
+    type: object
+    default: []
+    displayName: Stages this plan depends on
+
+  # Plan job parameters
+  - name: planJobName
+    type: string
+    default: plan_apply
+  - name: planJobDisplayName
+    type: string
+    default: Terraform Plan Apply
+  - name: planArtifactName
+    type: string
+    default: tfplan-apply
+  - name: planTerraformFileName
+    type: string
+    default: apply.tfplan
+
+  # Apply job parameters
+  - name: applyDeploymentName
+    type: string
+    default: terraform_apply
+  - name: applyJobDisplayName
+    type: string
+    default: Terraform Apply
+  - name: applyArtifactName
+    type: string
+    default: tfplan-apply
+  - name: applyTerraformFileName
+    type: string
+    default: apply.tfplan
+
+  # Common Terraform parameters
+  - name: terraformVersion
+    type: string
+    default: '1.14.7'
+  - name: serviceConnection
+    type: string
+  - name: rgNameTfstate
+    type: string
+  - name: storageNameTfstate
+    type: string
+  - name: containerNameTfstate
+    type: string
+  - name: nameTfstatePlan
+    type: string
+    displayName: 'tfstate file name for plan phase'
+  - name: nameTfstateApply
+    type: string
+    displayName: 'tfstate file name for apply phase'
+
+  # Working directory & configuration
+  - name: workingDirectory
+    type: string
+    default: './'
+  - name: checkovConfigDirectory
+    type: string
+    default: './configuration'
+  - name: variablesFile
+    type: string
+    default: ''
+  - name: additionalVariables
+    type: string
+    default: ''
+
+  # Environment & mode
+  - name: environment
+    type: string
+    default: recette
+
+stages:
+  # ---------------------------------------------------------------------------
+  # Stage 1: Generate Terraform Apply Plan
+  # ---------------------------------------------------------------------------
+  - stage: ${{ parameters.planStageName }}
+    displayName: 'Generate Terraform Plan - ${{ parameters.environment }}'
+    ${{ if ne(length(parameters.dependsOnStages), 0) }}:
+      dependsOn: ${{ parameters.dependsOnStages }}
+    jobs:
+      - template: job-terraform-plan.yml
+        parameters:
+          jobName: ${{ parameters.planJobName }}
+          jobDisplayName: ${{ parameters.planJobDisplayName }}
+          artifactName: ${{ parameters.planArtifactName }}
+          terraformPlanFileName: ${{ parameters.planTerraformFileName }}
+          terraformVersion: ${{ parameters.terraformVersion }}
+          serviceConnection: ${{ parameters.serviceConnection }}
+          rgNameTfstate: ${{ parameters.rgNameTfstate }}
+          storageNameTfstate: ${{ parameters.storageNameTfstate }}
+          containerNameTfstate: ${{ parameters.containerNameTfstate }}
+          nameTfstate: ${{ parameters.nameTfstatePlan }}
+          workingDirectory: ${{ parameters.workingDirectory }}
+          checkovConfigDirectory: ${{ parameters.checkovConfigDirectory }}
+          variablesFile: ${{ parameters.variablesFile }}
+          environment: ${{ parameters.environment }}
+          additionalVariables: ${{ parameters.additionalVariables }}
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Apply
+  # ---------------------------------------------------------------------------
+  - stage: ${{ parameters.applyStageName }}
+    displayName: 'Apply - ${{ parameters.environment }}'
+    dependsOn: ${{ parameters.planStageName }}
+    condition: succeeded('${{ parameters.planStageName }}')
+    jobs:
+      - template: deployment-job-terraform-apply.yml
+        parameters:
+          deploymentName: ${{ parameters.applyDeploymentName }}
+          deploymentDisplayName: ${{ parameters.applyJobDisplayName }}
+          artifactName: ${{ parameters.applyArtifactName }}
+          terraformPlanFileName: ${{ parameters.applyTerraformFileName }}
+          workingDirectory: ${{ parameters.workingDirectory }}
+          rgNameTfstate: ${{ parameters.rgNameTfstate }}
+          storageNameTfstate: ${{ parameters.storageNameTfstate }}
+          containerNameTfstate: ${{ parameters.containerNameTfstate }}
+          nameTfstate: ${{ parameters.nameTfstateApply }}
+          variablesFile: ${{ parameters.variablesFile }}
+          terraformVersion: ${{ parameters.terraformVersion }}
+          environment: ${{ parameters.environment }}
+          serviceConnection: ${{ parameters.serviceConnection }}
+          additionalVariables: ${{ parameters.additionalVariables }}

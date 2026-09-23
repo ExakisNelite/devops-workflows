@@ -1,0 +1,222 @@
+# =============================================================================
+# Reusable deployment job template: Terraform Destroy
+#
+# Approval gates are configured on the Azure DevOps environment
+# (e.g., recette, production) in the Azure DevOps portal — not in YAML.
+#
+# Terraform modules are sourced from Azure DevOps Repos (dev.azure.com).
+# Authentication uses the built-in $(System.AccessToken) — no external secret needed.
+# =============================================================================
+parameters:
+  - name: deploymentName
+    type: string
+    default: terraform_destroy
+  - name: deploymentDisplayName
+    type: string
+    default: Terraform Destroy
+  - name: artifactName
+    type: string
+    default: drop
+  - name: terraformPlanFileName
+    type: string
+  - name: terraformVersion
+    type: string
+    default: '1.14.7'
+  - name: firewallRuleName
+    type: string
+    default: AzureDevOpsAgent
+  - name: serviceConnection
+    type: string
+  - name: rgNameTfstate
+    type: string
+  - name: storageNameTfstate
+    type: string
+  - name: containerNameTfstate
+    type: string
+  - name: nameTfstate
+    type: string
+  - name: workingDirectory
+    type: string
+    default: '.'
+  - name: variablesFile
+    type: string
+    default: ''
+  - name: additionalVariables
+    type: string
+    default: ''
+  - name: environment
+    type: string
+    displayName: 'Azure DevOps Environnment name with approval gates configured'
+
+jobs:
+  - deployment: ${{ parameters.deploymentName }}
+    displayName: ${{ parameters.deploymentDisplayName }}
+    uses:
+      repositories: [iac-modules]
+    pool:
+      vmImage: ubuntu-latest
+    # The environment name must match an Azure DevOps environment with approval gates configured.
+    environment: ${{ parameters.environment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            ## CHECKOUT THE REPOSITORY
+            - checkout: self
+              displayName: Checkout Repository
+              persistCredentials: true
+              clean: true
+              fetchDepth: 0
+
+            ## OPEN FIREWALL TO ALLOW AZURE DEVOPS AGENT TO ACCESS THE STORAGE ACCOUNT FOR TFSTATE
+            # This step is necessary to allow the Azure DevOps Agent to access the storage account where the tfstate file is stored, which is required for Terraform operations. The firewall rule will be added to allow access from the Azure DevOps Agent's IP address, and it will be removed after the pipeline execution to ensure that the storage account is not left open.
+            - template: steps-azure-manage-firewall-open.yml
+              parameters:
+                serviceConnection: ${{ parameters.serviceConnection }}
+                rg: ${{ parameters.rgNameTfstate }}
+                storageAccount: true
+                ruleName: ${{ parameters.firewallRuleName }}
+
+            ## WAIT FOR DATA PLANE PROPAGATION
+            # Quick gate: confirm that the storage data plane is reachable before proceeding.
+            - task: AzureCLI@3
+              displayName: 'Wait for Storage Data Plane Readiness'
+              inputs:
+                connectionType: azureRM
+                azureSubscription: ${{ parameters.serviceConnection }}
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  set -uo pipefail
+                  SLEEP_SECONDS=10
+                  MAX_TIMEOUT=60
+                  ELAPSED=0
+
+                  while true; do
+                    if az storage container exists \
+                      --name "${{ parameters.containerNameTfstate }}" \
+                      --account-name "${{ parameters.storageNameTfstate }}" \
+                      --auth-mode login --query exists -o tsv >/dev/null 2>&1; then
+                      echo "Data plane access confirmed after ${ELAPSED}s."
+                      exit 0
+                    fi
+                    ELAPSED=$((ELAPSED + SLEEP_SECONDS))
+                    if [ $ELAPSED -ge $MAX_TIMEOUT ]; then
+                      echo "##vso[task.logissue type=error]Data plane not reachable after ${MAX_TIMEOUT}s - aborting."
+                      exit 1
+                    fi
+                    echo "Data plane not yet reachable, retrying in ${SLEEP_SECONDS}s... (${ELAPSED}s/${MAX_TIMEOUT}s)"
+                    sleep $SLEEP_SECONDS
+                  done
+
+            ## INSTALL TERRAFORM
+            - task: TerraformInstaller@1
+              displayName: Install Terraform ${{ parameters.terraformVersion }}
+              inputs:
+                terraformVersion: ${{ parameters.terraformVersion }}
+
+            ## CHECK IF CONTAINER EXISTS
+            - task: AzureCLI@3
+              displayName: Ensure TFState Blob Container Exists
+              inputs:
+                connectionType: azureRM
+                azureSubscription: ${{ parameters.serviceConnection }}
+                addSpnToEnvironment: true
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+
+                  set -euo pipefail
+
+                  EXISTS=$(az storage container exists \
+                    --name "${{ parameters.containerNameTfstate }}" \
+                    --account-name "${{ parameters.storageNameTfstate }}" \
+                    --auth-mode login --query exists -o tsv)
+
+                  if [ "$EXISTS" = "false" ]; then
+                    az storage container create \
+                      --name "${{ parameters.containerNameTfstate }}" \
+                      --account-name "${{ parameters.storageNameTfstate }}" \
+                      --auth-mode login --output none
+                    echo "Container '${{ parameters.containerNameTfstate }}' created."
+                  else
+                    echo "Container '${{ parameters.containerNameTfstate }}' already exists."
+                  fi
+
+            ## CHECK BREAK LEASE
+            - task: AzureCLI@3
+              displayName: Break TFState Blob Lease (if locked)
+              inputs:
+                connectionType: azureRM
+                azureSubscription: ${{ parameters.serviceConnection }}
+                addSpnToEnvironment: true
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+
+                  set -euo pipefail
+
+                  az storage blob lease break \
+                    --blob-name "${{ parameters.nameTfstate }}" \
+                    --container-name "${{ parameters.containerNameTfstate }}" \
+                    --account-name "${{ parameters.storageNameTfstate }}" \
+                    --auth-mode login \
+                    --output none 2>/dev/null || true
+
+            ## AUTHENTICATE GIT FOR TERRAFORM MODULES
+            - bash: |
+                # Authentification Git pour récupérer les modules Terraform si besoin
+                git config --global http.extraheader "AUTHORIZATION: bearer $(System.AccessToken)"
+              displayName: Authenticate Git for Terraform Modules
+              workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+            ## TERRAFORM INIT
+            - task: TerraformTask@5
+              displayName: Terraform Init in ${{ parameters.environment }}
+              inputs:
+                provider: azurerm
+                command: init
+                workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+                backendServiceArm: ${{ parameters.serviceConnection }}
+                backendAzureRmResourceGroupName: ${{ parameters.rgNameTfstate }}
+                backendAzureRmStorageAccountName: ${{ parameters.storageNameTfstate }}
+                backendAzureRmContainerName: ${{ parameters.containerNameTfstate }}
+                backendAzureRmKey: ${{ parameters.nameTfstate }}
+                backendAzureRmUseEnvironmentVariablesForAuthentication: true
+                backendAzureRmUseEntraIdForAuthentication: true
+
+            ## CLEANUP GIT CONFIGURATION
+            - bash: |
+                # Nettoyage de la config Git
+                git config --global --unset-all http.extraheader
+              displayName: Cleanup Git Configuration
+              workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+            ## DOWNLOAD PLAN FROM ARTIFACTS
+            - task: DownloadPipelineArtifact@2
+              displayName: Download Terraform Plan Artifact
+              inputs:
+                buildType: 'current'
+                artifactName: ${{ parameters.artifactName }}
+                targetPath: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+            ## TERRAFORM APPLY DESTROY PLAN
+            - task: TerraformTask@5
+              displayName: Terraform Destroy in ${{ parameters.environment }}
+              inputs:
+                provider: azurerm
+                command: apply
+                commandOptions: '${{ parameters.terraformPlanFileName }}'
+                environmentServiceNameAzureRM: ${{ parameters.serviceConnection }}
+                workingDirectory: ${{ parameters.workingDirectory }}
+
+            ## CLOSE FIREWALL TO REMOVE ACCESS ALLOWED TO AZURE DEVOPS AGENT TO THE STORAGE ACCOUNT FOR TFSTATE
+            # This step is important to ensure that the storage account is not left open after the pipeline execution, which could pose a security risk.
+            # This step will run always, even if the previous steps fail, to ensure that the firewall rule is removed and the storage account is secured.
+            - template: steps-azure-manage-firewall-close.yml
+              parameters:
+                action: CloseOneIp
+                serviceConnection: ${{ parameters.serviceConnection }}
+                rg: ${{ parameters.rgNameTfstate }}
+                storageAccount: true
+                ruleName: ${{ parameters.firewallRuleName }}

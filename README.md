@@ -1,6 +1,9 @@
 # devops-workflows
 
-This repository contains the Github Actions workflow files which make up our catalog of GitHub templates for setting up CI/CD chains.
+This repository contains our catalog of reusable CI/CD templates:
+
+- **GitHub Actions reusable workflows**, located in [.github/workflows](./.github/workflows)
+- **Azure DevOps YAML pipeline templates**, located in [azure-pipelines/templates](./azure-pipelines/templates)
 
 - Current Version: 0.3.0
 - Version date: 16/09/2025
@@ -9,7 +12,21 @@ This repository contains the Github Actions workflow files which make up our cat
 
 [Change History](./.github/CHANGELOG.md)
 
+## Repository structure
+
+```text
+├── .github/
+│   ├── workflows/        # GitHub Actions reusable workflows
+│   └── docs/             # GitHub Actions workflows documentation
+├── azure-pipelines/
+│   ├── templates/        # Azure DevOps YAML pipeline templates
+│   └── docs/             # Azure DevOps templates documentation
+└── README.md
+```
+
 ## Use repository
+
+### GitHub Actions workflows
 
 To use the workflows from this repository in your GitHub Actions workflows, you can reference them using the `uses` keyword with the format `ExakisNelite/devops-workflows/.github/workflows/workflow-name.yml@tag`.
 
@@ -25,6 +42,27 @@ jobs:
        envPAT: ${{ secrets.envPAT }}
 ```
 
+### Azure DevOps pipeline templates
+
+To use the Azure DevOps templates from this repository in your Azure DevOps pipelines, declare this repository as a repository resource and reference the templates with the `@alias` suffix:
+
+```yaml
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: MyProject/devops-workflows
+      ref: refs/tags/v0.4.0
+
+stages:
+  - template: azure-pipelines/templates/deployment-stage-terraform-apply.yml@templates
+    parameters:
+      serviceConnection: my-service-connection
+      # ...
+```
+
+See the [Azure DevOps templates documentation](./azure-pipelines/README.md) for the full list of templates and their parameters.
+
 ### Best practices for using these workflows
 
 1. Always reference a specific version tag (e.g., `@v0.1.7`) rather than `@main` for production workflows to ensure stability
@@ -34,7 +72,7 @@ jobs:
 
 If you have additional questions -> [FAQ](./.github/FAQ.md)
 
-## List of available workflows
+## List of available GitHub Actions workflows
 
 - [shared-create-release](./.github/docs/shared-create-release.md)
 - [shared-notify-teams](./.github/docs/shared-notify-teams.md)
@@ -47,6 +85,15 @@ If you have additional questions -> [FAQ](./.github/FAQ.md)
 - [shared-tf-deploy-platform](./.github/docs/shared-tf-deploy-platform.md)
 - [shared-tf-destroy-multirepos](./.github/docs/shared-tf-destroy-multirepos.md)
 - [shared-tf-destroy](./.github/docs/shared-tf-destroy.md)
+
+## List of available Azure DevOps pipeline templates
+
+See the [Azure DevOps templates documentation](./azure-pipelines/README.md) for usage instructions and details.
+
+- Stages templates: [deployment-stage-terraform-apply](./azure-pipelines/docs/deployment-stage-terraform-apply.md), [deployment-stage-terraform-destroy](./azure-pipelines/docs/deployment-stage-terraform-destroy.md)
+- Jobs templates: [jobs-terraform-checks](./azure-pipelines/docs/jobs-terraform-checks.md), [job-terraform-validate](./azure-pipelines/docs/job-terraform-validate.md), [job-terraform-validate-iac-modules](./azure-pipelines/docs/job-terraform-validate-iac-modules.md), [job-terraform-plan](./azure-pipelines/docs/job-terraform-plan.md), [job-create-release](./azure-pipelines/docs/job-create-release.md)
+- Deployment jobs templates: [deployment-job-terraform-apply](./azure-pipelines/docs/deployment-job-terraform-apply.md), [deployment-job-terraform-destroy](./azure-pipelines/docs/deployment-job-terraform-destroy.md)
+- Steps templates: [steps-azure-manage-firewall-open](./azure-pipelines/docs/steps-azure-manage-firewall-open.md), [steps-azure-manage-firewall-close](./azure-pipelines/docs/steps-azure-manage-firewall-close.md)
 
 ## Report a problem with the repository code
 

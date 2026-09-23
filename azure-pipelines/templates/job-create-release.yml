@@ -1,0 +1,136 @@
+parameters:
+  - name: defaultBump
+    type: string
+    default: 'patch'      # major | minor | patch
+  - name: shouldTagMajor
+    type: boolean
+    default: false
+  - name: shouldTagLatest
+    type: boolean
+    default: false
+  - name: mainBranch
+    type: string
+    default: 'main'
+
+jobs:
+  - job: create_release
+    displayName: 'Create GitHub Release'
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+
+      - checkout: self
+        fetchDepth: 0          # full history required for semver bump
+        persistCredentials: true
+        displayName: 'Checkout repository (full history)'
+
+      # ── Determine next semantic version ──────────────────────────────
+      - bash: |
+          # Fetch all tags
+          git fetch --tags
+
+          # Find latest semver tag (vMAJOR.MINOR.PATCH)
+          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+            | sort -V | tail -n1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+
+          echo "Latest tag: $LATEST_TAG"
+
+          MAJOR=$(echo "$LATEST_TAG" | cut -d. -f1 | tr -d 'v')
+          MINOR=$(echo "$LATEST_TAG" | cut -d. -f2)
+          PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
+
+          DEFAULT_BUMP='${{ parameters.defaultBump }}'
+
+          # Look for conventional-commit keywords in messages since last tag
+          MESSAGES=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
+
+          if echo "$MESSAGES" | grep -qiE '^(feat|fix|refactor|perf|chore|build|ci|docs|style|test)!|BREAKING CHANGE'; then
+            BUMP='major'
+          elif echo "$MESSAGES" | grep -qiE '^feat(\(.+\))?:'; then
+            BUMP='minor'
+          elif echo "$MESSAGES" | grep -qiE '^fix(\(.+\))?:'; then
+            BUMP='patch'
+          else
+            BUMP="$DEFAULT_BUMP"
+          fi
+
+          echo "Bump type: $BUMP"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New tag: $NEW_TAG"
+
+          # Generate changelog (commits since last tag)
+          CHANGELOG=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"- %s (%h)" 2>/dev/null \
+            || echo "Initial release")
+
+          # Export for next steps
+          echo "##vso[task.setvariable variable=NEW_TAG]$NEW_TAG"
+          echo "##vso[task.setvariable variable=BUMP_TYPE]$BUMP"
+          echo "##vso[task.setvariable variable=MAJOR_VERSION]$MAJOR"
+
+          # Write changelog to a file (multiline-safe)
+          echo "$CHANGELOG" > changelog.txt
+        displayName: 'Compute next semantic version'
+
+      # ── Push the new tag ──────────────────────────────────────────────
+      - bash: |
+          REPO_URL=$(git remote get-url origin)
+          # Replace https://[user@]host with token-authenticated URL
+          AUTH_REPO_URL=$(echo "$REPO_URL" | sed -E "s|https://([^@/]+@)?|https://x-access-token:${SYSTEM_ACCESS_TOKEN}@|")
+
+          git config user.email 'pipeline@azure-devops'
+          git config user.name 'Azure Pipelines'
+          git tag "$(NEW_TAG)"
+          git push "$AUTH_REPO_URL" "$(NEW_TAG)"
+          echo "Tag $(NEW_TAG) pushed."
+        displayName: 'Push new tag $(NEW_TAG)'
+        condition: ne(variables['Build.Reason'], 'PullRequest')
+        env:
+          SYSTEM_ACCESS_TOKEN: $(System.AccessToken)
+
+      # ── Tag vMAJOR floating tag (e.g. v1) ────────────────────────────
+      - bash: |
+          REPO_URL=$(git remote get-url origin)
+          AUTH_REPO_URL=$(echo "$REPO_URL" | sed -E "s|https://([^@/]+@)?|https://x-access-token:${SYSTEM_ACCESS_TOKEN}@|")
+
+          MAJOR_TAG="v$(MAJOR_VERSION)"
+          git tag -fa "$MAJOR_TAG" -m "Update $MAJOR_TAG to $(NEW_TAG)"
+          git push "$AUTH_REPO_URL" ":refs/tags/$MAJOR_TAG" || true
+          git push "$AUTH_REPO_URL" "$MAJOR_TAG"
+          echo "$MAJOR_TAG tag updated."
+        displayName: 'Update major floating tag (v$(MAJOR_VERSION))'
+        env:
+          SYSTEM_ACCESS_TOKEN: $(System.AccessToken)
+        condition: |
+          and(
+            eq('${{ parameters.shouldTagMajor }}', 'true'),
+            ne(variables['Build.Reason'], 'PullRequest')
+          )
+
+      # ── Tag latest ───────────────────────────────────────────────────
+      - bash: |
+          REPO_URL=$(git remote get-url origin)
+          AUTH_REPO_URL=$(echo "$REPO_URL" | sed -E "s|https://([^@/]+@)?|https://x-access-token:${SYSTEM_ACCESS_TOKEN}@|")
+
+          git tag -fa latest -m "Update latest tag to $(NEW_TAG)"
+          git push "$AUTH_REPO_URL" ":refs/tags/latest" || true
+          git push "$AUTH_REPO_URL" latest
+          echo "latest tag updated to $(NEW_TAG)."
+        displayName: 'Update latest tag'
+        env:
+          SYSTEM_ACCESS_TOKEN: $(System.AccessToken)
+        condition: |
+          and(
+            eq('${{ parameters.shouldTagLatest }}', 'true'),
+            ne(variables['Build.Reason'], 'PullRequest')
+          )

@@ -1,0 +1,401 @@
+parameters:
+  - name: jobName
+    type: string
+    default: terraform_plan
+  - name: jobDisplayName
+    type: string
+    default: Terraform Plan
+  - name: artifactName
+    type: string
+    default: drop
+  - name: terraformPlanFileName
+    type: string
+  - name: terraformVersion
+    type: string
+    default: '1.14.7'
+  - name: firewallRuleName
+    type: string
+    default: AzureDevOpsAgent
+  - name: serviceConnection
+    type: string
+  - name: rgNameTfstate
+    type: string
+  - name: storageNameTfstate
+    type: string
+  - name: containerNameTfstate
+    type: string
+  - name: nameTfstate
+    type: string
+  - name: workingDirectory
+    type: string
+    default: '.'
+  - name: checkovConfigDirectory
+    type: string
+    default: './configuration'
+  - name: variablesFile
+    type: string
+    default: ''
+  - name: additionalVariables
+    type: string
+    default: ''
+  - name: environment
+    type: string
+    default: integration
+  - name: publishPlanSummary
+    type: boolean
+    default: true
+  - name: destroyMode
+    type: boolean
+    default: false
+
+jobs:
+  - job: ${{ parameters.jobName }}
+    displayName: ${{ parameters.jobDisplayName }}
+    uses:
+      repositories: [iac-modules]
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      ## CHECKOUT THE REPOSITORY
+      - checkout: self
+        displayName: Checkout Repository
+        persistCredentials: true
+        clean: true
+        fetchDepth: 0
+
+      ## OPEN FIREWALL TO ALLOW AZURE DEVOPS AGENT TO ACCESS THE STORAGE ACCOUNT FOR TFSTATE
+      # This step is necessary to allow the Azure DevOps Agent to access the storage account where the tfstate file is stored, which is required for Terraform operations. The firewall rule will be added to allow access from the Azure DevOps Agent's IP address, and it will be removed after the pipeline execution to ensure that the storage account is not left open.
+      - template: steps-azure-manage-firewall-open.yml
+        parameters:
+          serviceConnection: ${{ parameters.serviceConnection }}
+          rg: ${{ parameters.rgNameTfstate }}
+          storageAccount: true
+          ruleName: ${{ parameters.firewallRuleName }}
+
+      ## WAIT FOR DATA PLANE PROPAGATION
+      # Quick gate: confirm that the storage data plane is reachable before proceeding.
+      - task: AzureCLI@3
+        displayName: 'Wait for Storage Data Plane Readiness'
+        inputs:
+          connectionType: azureRM
+          azureSubscription: ${{ parameters.serviceConnection }}
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            set -uo pipefail
+            SLEEP_SECONDS=10
+            MAX_TIMEOUT=60
+            ELAPSED=0
+
+            while true; do
+              if az storage container exists \
+                --name "${{ parameters.containerNameTfstate }}" \
+                --account-name "${{ parameters.storageNameTfstate }}" \
+                --auth-mode login --query exists -o tsv >/dev/null 2>&1; then
+                echo "Data plane access confirmed after ${ELAPSED}s."
+                exit 0
+              fi
+              ELAPSED=$((ELAPSED + SLEEP_SECONDS))
+              if [ $ELAPSED -ge $MAX_TIMEOUT ]; then
+                echo "##vso[task.logissue type=error]Data plane not reachable after ${MAX_TIMEOUT}s - aborting."
+                exit 1
+              fi
+              echo "Data plane not yet reachable, retrying in ${SLEEP_SECONDS}s... (${ELAPSED}s/${MAX_TIMEOUT}s)"
+              sleep $SLEEP_SECONDS
+            done
+
+      ## INSTALL TERRAFORM
+      - task: TerraformInstaller@1
+        displayName: Install Terraform ${{ parameters.terraformVersion }}
+        inputs:
+          terraformVersion: ${{ parameters.terraformVersion }}
+
+      ## CHECK IF CONTAINER EXISTS
+      - task: AzureCLI@3
+        displayName: Ensure TFState Blob Container Exists
+        inputs:
+          connectionType: azureRM
+          azureSubscription: ${{ parameters.serviceConnection }}
+          addSpnToEnvironment: true
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+
+            set -euo pipefail
+
+            EXISTS=$(az storage container exists \
+              --name "${{ parameters.containerNameTfstate }}" \
+              --account-name "${{ parameters.storageNameTfstate }}" \
+              --auth-mode login --query exists -o tsv)
+
+            if [ "$EXISTS" = "false" ]; then
+              az storage container create \
+                --name "${{ parameters.containerNameTfstate }}" \
+                --account-name "${{ parameters.storageNameTfstate }}" \
+                --auth-mode login --output none
+              echo "Container '${{ parameters.containerNameTfstate }}' created."
+            else
+              echo "Container '${{ parameters.containerNameTfstate }}' already exists."
+            fi
+
+      ## CHECK BREAK LEASE
+      - task: AzureCLI@3
+        displayName: Break TFState Blob Lease (if locked)
+        inputs:
+          connectionType: azureRM
+          azureSubscription: ${{ parameters.serviceConnection }}
+          addSpnToEnvironment: true
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+
+            set -euo pipefail
+
+            az storage blob lease break \
+              --blob-name "${{ parameters.nameTfstate }}" \
+              --container-name "${{ parameters.containerNameTfstate }}" \
+              --account-name "${{ parameters.storageNameTfstate }}" \
+              --auth-mode login \
+              --output none 2>/dev/null || true
+
+      ## AUTHENTICATE GIT FOR TERRAFORM MODULES
+      - bash: |
+          # Authentification Git pour récupérer les modules Terraform si besoin
+          git config --global http.extraheader "AUTHORIZATION: bearer $(System.AccessToken)"
+        displayName: Authenticate Git for Terraform Modules
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## TERRAFORM INIT
+      - task: TerraformTask@5
+        displayName: Terraform Init in ${{ parameters.environment }}
+        inputs:
+          provider: azurerm
+          command: init
+          workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+          backendServiceArm: ${{ parameters.serviceConnection }}
+          backendAzureRmResourceGroupName: ${{ parameters.rgNameTfstate }}
+          backendAzureRmStorageAccountName: ${{ parameters.storageNameTfstate }}
+          backendAzureRmContainerName: ${{ parameters.containerNameTfstate }}
+          backendAzureRmKey: ${{ parameters.nameTfstate }}
+          backendAzureRmUseEnvironmentVariablesForAuthentication: true
+          backendAzureRmUseEntraIdForAuthentication: true
+
+      ## CLEANUP GIT CONFIGURATION
+      - bash: |
+          # Nettoyage de la config Git
+          git config --global --unset-all http.extraheader
+        displayName: Cleanup Git Configuration
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## BUILD TERRAFORM.VARS
+      - bash: |
+          if [ -n "${ADDITIONAL_VARIABLES}" ]; then
+            echo "Creating terraform.tfvars from additional variables"
+            printf '%s\n' "${ADDITIONAL_VARIABLES}" > terraform.tfvars
+            terraform fmt terraform.tfvars
+          else
+            echo "No additional variables provided, skipping terraform.tfvars creation"
+          fi
+        displayName: Build terraform.tfvars from additional variables
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+        env:
+          ADDITIONAL_VARIABLES: ${{ parameters.additionalVariables }}
+
+      ## TERRAFORM VALIDATE
+      - task: TerraformTask@5
+        displayName: Terraform Validate in ${{ parameters.environment }}
+        inputs:
+          provider: 'azurerm'
+          command: validate
+          environmentServiceNameAzureRM: ${{ parameters.serviceConnection }}
+          workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## BUILDING TERRAFORM PLAN COMMAND OPTIONS
+      - bash: |
+          PLAN_CMD_OPTIONS="-input=false"
+          if [ -n "${VARIABLES_FILE}" ]; then
+            PLAN_CMD_OPTIONS="${PLAN_CMD_OPTIONS} -var-file=${VARIABLES_FILE}"
+          fi
+          if [ -f "terraform.tfvars" ]; then
+            PLAN_CMD_OPTIONS="${PLAN_CMD_OPTIONS} -var-file=terraform.tfvars"
+          fi
+          PLAN_CMD_OPTIONS="${PLAN_CMD_OPTIONS}"
+
+          echo "Built Terraform Plan Command Options: $PLAN_CMD_OPTIONS"
+
+          echo "##vso[task.setvariable variable=PLAN_CMD_OPTIONS]$PLAN_CMD_OPTIONS"
+        displayName: Build Terraform Plan Command Options
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+        env:
+          VARIABLES_FILE: ${{ parameters.variablesFile }}
+
+      ## TERRAFORM PLAN
+      - task: TerraformTask@5
+        displayName: Terraform Plan in ${{ parameters.environment }}
+        condition: and(succeeded(), eq('${{ parameters.destroyMode }}', 'false'))
+        inputs:
+          provider: azurerm
+          command: plan
+          commandOptions: '$(PLAN_CMD_OPTIONS) -out=${{ parameters.terraformPlanFileName }}'
+          environmentServiceNameAzureRM: ${{ parameters.serviceConnection }}
+          workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## TERRAFORM PLAN FOR DESTROY (if destroyMode is true)
+      - task: TerraformTask@5
+        displayName: Terraform Plan for Destroy Mode in ${{ parameters.environment }}
+        condition: and(succeeded(), eq('${{ parameters.destroyMode }}', 'true'))
+        inputs:
+          provider: azurerm
+          command: plan
+          commandOptions: '$(PLAN_CMD_OPTIONS) -destroy -out=${{ parameters.terraformPlanFileName }}'
+          environmentServiceNameAzureRM: ${{ parameters.serviceConnection }}
+          workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## TERRAFORM SHOW (JSON)
+      - bash: |
+          terraform show -json ${{ parameters.terraformPlanFileName }} \
+            > ${{ parameters.terraformPlanFileName }}.json
+        displayName: Terraform Show Plan (JSON) in ${{ parameters.environment }}
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      ## TERRAFORM SHOW (human-readable text for summary)
+      - bash: |
+          terraform show -no-color ${{ parameters.terraformPlanFileName }} \
+            > tfplan-${{ parameters.terraformPlanFileName }}.txt
+        displayName: Generate Human-Readable Plan Output
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      # TERRAFORM SECURITY CHECK WITH CHECKOV
+      - bash: |
+          pip install checkov --quiet --disable-pip-version-check
+
+          CHECKOV_SKIP=$(cat "$(System.DefaultWorkingDirectory)/${{ parameters.checkovConfigDirectory }}/checkov-skip" | tr -d '\n ' | sed 's/,$//' || echo "")
+
+          PLAN_FILE="${{ parameters.terraformPlanFileName }}.json"
+
+          if [ ! -f "$PLAN_FILE" ]; then
+            echo "##vso[task.logissue type=warning]Plan JSON file not found: $PLAN_FILE"
+          else
+            echo "Scanning plan file: $PLAN_FILE ($(wc -c < "$PLAN_FILE") bytes)"
+
+            SKIP_ARGS=""
+            if [ -n "$CHECKOV_SKIP" ]; then
+              SKIP_ARGS="--skip-check $CHECKOV_SKIP"
+            fi
+
+            checkov \
+              -f "$PLAN_FILE" \
+              $SKIP_ARGS \
+              --framework terraform_plan \
+              -o cli -o junitxml \
+              --output-file-path console,results_junitxml.xml \
+              --soft-fail || true
+          fi
+
+          # Ensure JUnit XML exists for PublishTestResults
+          if [ ! -f "results_junitxml.xml" ]; then
+            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="checkov" tests="0" failures="0" errors="0" skipped="0"></testsuite></testsuites>' > results_junitxml.xml
+          fi
+
+          echo "--- Debug: files after checkov ---"
+          echo "pwd: $(pwd)"
+          ls -la results_junitxml.xml 2>/dev/null || echo "results_junitxml.xml NOT FOUND"
+
+        displayName: Checkov Security Scan
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+
+      # PUBLISH CHECKOV RESULTS
+      - task: PublishTestResults@2
+        condition: succeeded()
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: '**/results_junitxml.xml'
+          searchFolder: $(System.DefaultWorkingDirectory)
+          testRunTitle: Checkov Results
+          mergeTestResults: false
+          failTaskOnFailedTests: false
+          publishRunAttachments: true
+        displayName: Publish Checkov scan results
+
+      ## PUBLISH TERRAFORM PLAN IN PIPELINE SUMMARY
+      - bash: |
+          set -euo pipefail
+          PLAN_TXT="tfplan-${{ parameters.terraformPlanFileName }}.txt"
+          CLEAN_PLAN_TXT="tfplan-${{ parameters.terraformPlanFileName }}.clean.txt"
+          SUMMARY_FILE="$(pwd)/tfplan-${{ parameters.terraformPlanFileName }}-summary.md"
+          ARTIFACT_DIR="tfplan-${{ parameters.terraformPlanFileName }}-artifact"
+          HTML_FILE="${ARTIFACT_DIR}/tfplan-${{ parameters.terraformPlanFileName }}.html"
+          ARTIFACT_NAME="tfplan-${{ parameters.terraformPlanFileName }}-html"
+          ARTIFACTS_URL="${SYSTEM_TEAMFOUNDATIONCOLLECTIONURI}${SYSTEM_TEAMPROJECT}/_build/results?buildId=${BUILD_BUILDID}&view=artifacts&type=publishedArtifacts"
+
+          mkdir -p "$ARTIFACT_DIR"
+
+          if [ ! -f "$PLAN_TXT" ]; then
+            echo "##vso[task.logissue type=warning]Terraform plan output file not found: $PLAN_TXT"
+            printf '## Terraform Plan (${{ parameters.environment }})\n\nPlan file not found: %s\n' "$PLAN_TXT" > "$SUMMARY_FILE"
+            printf '<html><body><h2>Terraform Plan (${{ parameters.environment }})</h2><p>Plan file not found: %s</p></body></html>\n' "$PLAN_TXT" > "$HTML_FILE"
+            if [ "$PUBLISH_PLAN_SUMMARY" = "True" ]; then
+              echo "##vso[task.uploadsummary]$SUMMARY_FILE"
+            fi
+            exit 0
+          fi
+
+          sed -r 's/\x1B\[[0-9;]*[mK]//g' "$PLAN_TXT" > "$CLEAN_PLAN_TXT"
+          cp "$PLAN_TXT" "${ARTIFACT_DIR}/"
+          cp "$CLEAN_PLAN_TXT" "${ARTIFACT_DIR}/"
+
+          if python3 -m pip install ansi2html --quiet --disable-pip-version-check >/dev/null 2>&1; then
+            python3 -c "from ansi2html import Ansi2HTMLConverter; import pathlib, sys; t = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace'); pathlib.Path(sys.argv[2]).write_text(Ansi2HTMLConverter(inline=True).convert(t, full=True), encoding='utf-8')" "$PLAN_TXT" "$HTML_FILE"
+          else
+            python3 -c "import html, pathlib, sys; t = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace'); pathlib.Path(sys.argv[2]).write_text(f'<html><body><h2>Terraform Plan</h2><pre>{html.escape(t)}</pre></body></html>', encoding='utf-8')" "$PLAN_TXT" "$HTML_FILE"
+          fi
+
+          {
+            echo "## Terraform Plan (${{ parameters.jobName }} - ${{ parameters.environment }})"
+            echo
+            echo "Artefact HTML complet: [${ARTIFACT_NAME}](${ARTIFACTS_URL})"
+            echo
+            echo "<details><summary>Afficher le plan</summary>"
+            echo
+            echo '```text'
+            cat "$CLEAN_PLAN_TXT"
+            echo '```'
+            echo
+            echo "</details>"
+          } > "$SUMMARY_FILE"
+
+          if [ "$PUBLISH_PLAN_SUMMARY" = "True" ]; then
+            echo "##vso[task.uploadsummary]$SUMMARY_FILE"
+          fi
+        displayName: Publish Terraform Plan in Pipeline Summary
+        workingDirectory: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+        env:
+          PUBLISH_PLAN_SUMMARY: ${{ parameters.publishPlanSummary }}
+
+      # COPY TERRAFORM PLAN TO ARTIFACT STAGING DIRECTORY
+      - task: CopyFiles@2
+        displayName: Copy Terraform Plan JSON for Artifact
+        inputs:
+          SourceFolder: $(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}
+          Contents: |
+            ${{ parameters.terraformPlanFileName }}
+            ${{ parameters.terraformPlanFileName }}.json
+            tfplan-${{ parameters.terraformPlanFileName }}.txt
+            tfplan-${{ parameters.terraformPlanFileName }}-summary.md
+
+          TargetFolder: $(Build.ArtifactStagingDirectory)
+
+      # PUBLISH ARTIFACT STAGING DIRECTORY TO ARTIFACTS
+      - publish: $(Build.ArtifactStagingDirectory)
+        artifact: ${{ parameters.artifactName }}
+
+      ## CLOSE FIREWALL TO REMOVE ACCESS ALLOWED TO AZURE DEVOPS AGENT TO THE STORAGE ACCOUNT FOR TFSTATE
+      # This step is important to ensure that the storage account is not left open after the pipeline execution, which could pose a security risk.
+      # This step will run always, even if the previous steps fail, to ensure that the firewall rule is removed and the storage account is secured.
+      - template: steps-azure-manage-firewall-close.yml
+        parameters:
+          action: CloseOneIp
+          serviceConnection: ${{ parameters.serviceConnection }}
+          rg: ${{ parameters.rgNameTfstate }}
+          storageAccount: true
+          ruleName: ${{ parameters.firewallRuleName }}

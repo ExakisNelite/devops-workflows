@@ -1,4 +1,4 @@
-name: Reusable Teams Notification Workflow
+name: Reusable Teams Notification Workflow for Reporting Deployment Status
 
 on:
   workflow_call:

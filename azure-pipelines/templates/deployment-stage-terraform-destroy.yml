@@ -1,0 +1,130 @@
+parameters:
+  # Stage naming & orchestration
+  - name: planStageName
+    type: string
+    default: GeneratePlan
+    displayName: Plan stage name
+  - name: destroyStageName
+    type: string
+    default: Destroy
+    displayName: Destroy stage name
+  - name: dependsOnStages
+    type: object
+    default: []
+    displayName: Stages this plan depends on
+
+  # Plan job parameters
+  - name: planJobName
+    type: string
+    default: plan_destroy
+  - name: planJobDisplayName
+    type: string
+    default: Terraform Plan Destroy
+  - name: planArtifactName
+    type: string
+    default: tfplan-destroy
+  - name: planTerraformFileName
+    type: string
+    default: destroy.tfplan
+
+  # Destroy job parameters
+  - name: destroyDeploymentName
+    type: string
+    default: terraform_destroy
+  - name: destroyJobDisplayName
+    type: string
+    default: Terraform Destroy
+  - name: destroyArtifactName
+    type: string
+    default: tfplan-destroy
+
+  # Common Terraform parameters
+  - name: terraformVersion
+    type: string
+    default: '1.14.7'
+  - name: serviceConnection
+    type: string
+  - name: rgNameTfstate
+    type: string
+  - name: storageNameTfstate
+    type: string
+  - name: containerNameTfstate
+    type: string
+  - name: nameTfstatePlan
+    type: string
+    displayName: 'tfstate file name for plan phase'
+  - name: nameTfstateDestroy
+    type: string
+    displayName: 'tfstate file name for destroy phase'
+
+  # Working directory & configuration
+  - name: workingDirectory
+    type: string
+    default: './'
+  - name: checkovConfigDirectory
+    type: string
+    default: './configuration'
+  - name: variablesFile
+    type: string
+    default: ''
+  - name: additionalVariables
+    type: string
+    default: ''
+
+  # Environment & mode
+  - name: environment
+    type: string
+    default: recette
+
+stages:
+  # ---------------------------------------------------------------------------
+  # Stage 1: Generate Terraform Destroy Plan
+  # ---------------------------------------------------------------------------
+  - stage: ${{ parameters.planStageName }}
+    displayName: 'Generate Terraform Plan - ${{ parameters.environment }}'
+    ${{ if ne(length(parameters.dependsOnStages), 0) }}:
+      dependsOn: ${{ parameters.dependsOnStages }}
+    jobs:
+      - template: job-terraform-plan.yml
+        parameters:
+          jobName: ${{ parameters.planJobName }}
+          jobDisplayName: ${{ parameters.planJobDisplayName }}
+          artifactName: ${{ parameters.planArtifactName }}
+          terraformPlanFileName: ${{ parameters.planTerraformFileName }}
+          terraformVersion: ${{ parameters.terraformVersion }}
+          serviceConnection: ${{ parameters.serviceConnection }}
+          rgNameTfstate: ${{ parameters.rgNameTfstate }}
+          storageNameTfstate: ${{ parameters.storageNameTfstate }}
+          containerNameTfstate: ${{ parameters.containerNameTfstate }}
+          nameTfstate: ${{ parameters.nameTfstatePlan }}
+          workingDirectory: ${{ parameters.workingDirectory }}
+          checkovConfigDirectory: ${{ parameters.checkovConfigDirectory }}
+          variablesFile: ${{ parameters.variablesFile }}
+          environment: ${{ parameters.environment }}
+          destroyMode: true
+          additionalVariables: ${{ parameters.additionalVariables }}
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Destroy
+  # ---------------------------------------------------------------------------
+  - stage: ${{ parameters.destroyStageName }}
+    displayName: 'Destroy - ${{ parameters.environment }}'
+    dependsOn: ${{ parameters.planStageName }}
+    condition: succeeded('${{ parameters.planStageName }}')
+    jobs:
+      - template: deployment-job-terraform-destroy.yml
+        parameters:
+          deploymentName: ${{ parameters.destroyDeploymentName }}
+          deploymentDisplayName: ${{ parameters.destroyJobDisplayName }}
+          artifactName: ${{ parameters.destroyArtifactName }}
+          terraformPlanFileName: ${{ parameters.planTerraformFileName }}
+          workingDirectory: ${{ parameters.workingDirectory }}
+          rgNameTfstate: ${{ parameters.rgNameTfstate }}
+          storageNameTfstate: ${{ parameters.storageNameTfstate }}
+          containerNameTfstate: ${{ parameters.containerNameTfstate }}
+          nameTfstate: ${{ parameters.nameTfstateDestroy }}
+          variablesFile: ${{ parameters.variablesFile }}
+          terraformVersion: ${{ parameters.terraformVersion }}
+          environment: ${{ parameters.environment }}
+          serviceConnection: ${{ parameters.serviceConnection }}
+          additionalVariables: ${{ parameters.additionalVariables }}

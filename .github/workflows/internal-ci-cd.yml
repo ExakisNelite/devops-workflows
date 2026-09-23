@@ -30,6 +30,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout working directory
         uses: actions/checkout@v7
@@ -41,5 +43,39 @@ jobs:
 
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+
+  azure-pipelines-yaml-lint:
+    name: Lint Azure DevOps templates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout working directory
+        uses: actions/checkout@v7
+
+      - name: Install yamllint
+        run: pip install yamllint
+        shell: bash
+
+      - name: Lint Azure DevOps pipeline templates
+        run: yamllint azure-pipelines/templates/ -c .github/configuration/.yamllint-azure-pipelines
+        shell: bash
+
+  azure-pipelines-validate-templates:
+    name: Validate Azure DevOps templates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout working directory
+        uses: actions/checkout@v7
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+        shell: bash
+
+      - name: Validate template structure, cross-references and documentation
+        run: python .github/scripts/validate_azure_pipelines_templates.py --templates-dir azure-pipelines/templates --docs-dir azure-pipelines/docs
         shell: bash
 

@@ -1,0 +1,21 @@
+# yamllint configuration for Azure DevOps pipeline templates.
+# Azure Pipelines YAML uses compile-time expressions (${{ }}), runtime
+# expressions ($()) and template-specific keywords that are not part of
+# generic YAML conventions, so some default rules are relaxed.
+extends: default
+
+rules:
+  line-length: disable
+  comments: disable
+  comments-indentation: disable
+  document-start: disable
+  # Files may be edited on Windows (CRLF); line ending style is not enforced
+  new-lines: disable
+  truthy:
+    # 'on'/'off' style booleans are meaningful in pipeline YAML
+    check-keys: false
+  indentation:
+    indent-sequences: consistent
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1

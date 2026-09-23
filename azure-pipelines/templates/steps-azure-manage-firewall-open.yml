@@ -1,0 +1,99 @@
+# =============================================================================
+# Reusable steps template: Azure Firewall Management Opening on Azure Resources for Azure DevOps Agents
+#
+# This one manage the opening of firewall rules for Azure resources to allow access from Azure DevOps agents during pipeline execution.
+#
+# Usage example (inside a job template):
+#
+#   - template: steps-azure-manage-firewall-open.yml
+#     parameters:
+#       serviceConnection: my-service-connection
+#       StorageAccount: true
+#
+#   ... other steps ...
+#
+#   - template: steps-azure-manage-firewall-close.yml
+#     parameters:
+#       action: CloseOneIp
+#       serviceConnection: my-service-connection
+#       StorageAccount: true
+# =============================================================================
+
+parameters:
+  # Azure service connection used to authenticate against ARM
+  - name: serviceConnection
+    type: string
+
+  # IP to open/close. "IPRUNNER" resolves to the agent's public IP.
+  - name: ip
+    type: string
+    default: IPRUNNER
+
+  # Name of the firewall rule to create/remove (where supported by the resource type)
+  - name: ruleName
+    type: string
+    default: AzureDevOpsAgent
+
+  # Scope to a specific resource group (empty = whole subscription)
+  - name: rg
+    type: string
+    default: ''
+
+  # Resource types to include
+  - name: storageAccount
+    type: boolean
+    default: false
+  - name: azureSqlDatabase
+    type: boolean
+    default: false
+  - name: appService
+    type: boolean
+    default: false
+  - name: functionApp
+    type: boolean
+    default: false
+  - name: keyvault
+    type: boolean
+    default: false
+  - name: acr
+    type: boolean
+    default: false
+  - name: appConfiguration
+    type: boolean
+    default: false
+  - name: postgreSQL
+    type: boolean
+    default: false
+
+  # Resources to exclude by name (comma-separated)
+  - name: exclude
+    type: string
+    default: improbable__name
+
+  # Path to the scripts directory (defaults to repo root /scripts)
+  - name: scriptsDirectory
+    type: string
+    default: $(Build.SourcesDirectory)/scripts
+
+steps:
+  - task: AzureCLI@3
+    displayName: 'Firewall: Open for runner IP (${{ parameters.ip }})'
+    inputs:
+      connectionType: azureRM
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: pscore
+      scriptLocation: inlineScript
+      inlineScript: |
+        & "${{ parameters.scriptsDirectory }}/open-firewalls.ps1" `
+          -RG          "${{ parameters.rg }}" `
+          -rulename    "${{ parameters.ruleName }}" `
+          -ip          "${{ parameters.ip }}" `
+          -exclude     "${{ parameters.exclude }}" `
+          -StorageAccount    $([System.Convert]::ToBoolean("${{ parameters.storageAccount }}")) `
+          -AzureSqlDatabase  $([System.Convert]::ToBoolean("${{ parameters.azureSqlDatabase }}")) `
+          -AppService        $([System.Convert]::ToBoolean("${{ parameters.appService }}")) `
+          -FunctionApp       $([System.Convert]::ToBoolean("${{ parameters.functionApp }}")) `
+          -Keyvault          $([System.Convert]::ToBoolean("${{ parameters.keyvault }}")) `
+          -ACR               $([System.Convert]::ToBoolean("${{ parameters.acr }}")) `
+          -AppConfiguration  $([System.Convert]::ToBoolean("${{ parameters.appConfiguration }}")) `
+          -PostgreSQL        $([System.Convert]::ToBoolean("${{ parameters.postgreSQL }}"))
